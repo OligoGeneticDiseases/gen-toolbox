@@ -2,9 +2,7 @@ import argparse
 import os.path
 
 import hail as hl
-
 import file_utility
-
 
 def vcfs_to_matrixtable(f, destination, write=True):
     if type(f) is list:
