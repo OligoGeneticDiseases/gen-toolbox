@@ -5,18 +5,22 @@ import hail as hl
 import file_utility
 
 def vcfs_to_matrixtable(f, destination, write=True):
+
+    files = list()
     if type(f) is list:
-        files = list()
+        for vcf in f:
+            files.append(vcf)
+
+    elif not f.endswith(".vcf"):
         with open(f) as vcflist:
             for vcfpath in vcflist:
                 assert os.path.exists(vcfpath)
                 files.append(vcfpath)
-        f = files  # Send the list of .VCF paths to the importer
-
     else:
         assert os.path.exists(f), "Path {} does not exist.".format(f)
+        files.append(f)  # Only one file
 
-    table = hl.import_vcf(f, force=True, reference_genome='GRCh38')
+    table = hl.import_vcf(files, force=True, reference_genome='GRCh38')
     if write:
         table.write(destination)
     return table
