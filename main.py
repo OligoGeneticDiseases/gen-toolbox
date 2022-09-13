@@ -14,8 +14,9 @@ def vcfs_to_matrixtable(f, destination, write=True):
     elif not f.endswith(".vcf"):
         with open(f) as vcflist:
             for vcfpath in vcflist:
-                assert os.path.exists(vcfpath)
-                files.append(vcfpath)
+                stripped = vcfpath.strip()
+                assert os.path.exists(stripped)
+                files.append(stripped)
     else:
         assert os.path.exists(f), "Path {} does not exist.".format(f)
         files.append(f)  # Only one file
