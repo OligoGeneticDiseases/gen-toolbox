@@ -6,6 +6,6 @@ RUN mkdir -p /usr/share/man/man1 && \
     apt-get update && apt-get install -y \
     openjdk-11-jre-headless \
     && rm -rf /var/lib/apt/lists/* && \
-    pip3 --no-cache-dir install hail ipython
+    pip3 install -r requirements.txt
 
 ENTRYPOINT [ "python", "./main.py" ]

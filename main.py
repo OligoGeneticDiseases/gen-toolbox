@@ -4,24 +4,47 @@ import os.path
 import hail as hl
 import file_utility
 
-def vcfs_to_matrixtable(f, destination, write=True):
 
+def vcfs_to_matrixtable(f, destination, write=True):
     files = list()
     if type(f) is list:
         for vcf in f:
             files.append(vcf)
 
-    elif not f.endswith(".vcf"):
+    elif not f.endswith(".vcf") and not f.endswith(".gz"):
         with open(f) as vcflist:
             for vcfpath in vcflist:
                 stripped = vcfpath.strip()
                 assert os.path.exists(stripped)
                 files.append(stripped)
     else:
-        assert os.path.exists(f), "Path {} does not exist.".format(f)
+        assert os.path.exists(f), "Path {0} does not exist.".format(f)
         files.append(f)  # Only one file
 
-    table = hl.import_vcf(files, force=True, reference_genome='GRCh38')
+    table = hl.import_vcf(files, force=True, reference_genome='GRCh37', contig_recoding={"chr1": "1",
+                                                                                         "chr2": "2",
+                                                                                         "chr3": "3",
+                                                                                         "chr4": "4",
+                                                                                         "chr5": "5",
+                                                                                         "chr6": "6",
+                                                                                         "chr7": "7",
+                                                                                         "chr8": "8",
+                                                                                         "chr9": "9",
+                                                                                         "chr10": "10",
+                                                                                         "chr11": "11",
+                                                                                         "chr12": "12",
+                                                                                         "chr13": "13",
+                                                                                         "chr14": "14",
+                                                                                         "chr15": "15",
+                                                                                         "chr16": "16",
+                                                                                         "chr17": "17",
+                                                                                         "chr18": "18",
+                                                                                         "chr19": "19",
+                                                                                         "chr20": "20",
+                                                                                         "chr21": "21",
+                                                                                         "chr22": "22",
+                                                                                         "chrX": "X",
+                                                                                         "chrY": "Y"})
     if write:
         table.write(destination)
     return table
@@ -35,7 +58,7 @@ if __name__ == '__main__':
         findtype = subparsers.add_parser("Findtype", help="Find all specific files of a given filetype.")
         findtype.add_argument("-s", "--source", help="Directory to be searched.", action="store", type=str)
         findtype.add_argument("-d", "--directory", help="Directory to be saved to.", nargs='?', const=".",
-                              action="store", type=str)         # TODO: Default value returns None type
+                              action="store", type=str)  # TODO: Default value returns None type
         findtype.add_argument("-t", "--type", help="Filetype to be used.", action="store", type=str)
         findtype.add_argument("-r", "--regex", help="Filter strings by including parsed regex.", action="store",
                               type=str)
