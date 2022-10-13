@@ -241,8 +241,11 @@ if __name__ == '__main__':
                 # Unique files only, duplicates written to duplicates_*.txt
             elif str.lower(args.command) == "readvcfs":
                 print("Turning {0} into HailTable in directory {1}".format(args.file, args.dest))
-                if Path(args.dest).exists() and not args.overwrite:
-                    gnomad_tb = hl.read_table(Path(args.dest).joinpath(Path("gnomad_tb")).__str__())
+                if Path(args.dest).joinpath(Path("gnomad_tb")).exists():
+                    if not args.overwrite:
+                        gnomad_tb = hl.read_table(Path(args.dest).joinpath(Path("gnomad_tb")).__str__())
+                    else:
+                        gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite)
                 else:
                     gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite)
                 gnomad_tb.describe()
