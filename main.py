@@ -1,11 +1,19 @@
 import argparse
 import os.path
+import shutil
+from pathlib import Path
+from sys import stderr
 
 import hail as hl
+from hailtop.utils import time
+
 import file_utility
 
+mt_path = "/mnt/c/Users/ville/Documents/hail_vep"
+vep_json = "/mnt/c/Users/ville/Documents/VEP_cfg.json"
 
-def vcfs_to_matrixtable(f, destination, write=True):
+
+def vcfs_to_matrixtable(f, destination=None, write=True):
     files = list()
     if type(f) is list:
         for vcf in f:
@@ -21,6 +29,8 @@ def vcfs_to_matrixtable(f, destination, write=True):
         assert os.path.exists(f), "Path {0} does not exist.".format(f)
         files.append(f)  # Only one file
 
+    # recode = {f"chr{i}":f"{i}" for i in (list(range(1, 23)) + ['X', 'Y'])}
+    # Can import only samples of the same key (matrixtable join), if input is list of vcfs
     table = hl.import_vcf(files, force=True, reference_genome='GRCh37', contig_recoding={"chr1": "1",
                                                                                          "chr2": "2",
                                                                                          "chr3": "3",
@@ -46,8 +56,151 @@ def vcfs_to_matrixtable(f, destination, write=True):
                                                                                          "chrX": "X",
                                                                                          "chrY": "Y"})
     if write:
-        table.write(destination)
+        if not os.path.exists(destination):
+            table.write(destination)
+        else:
+            raise FileExistsError(destination)
     return table
+
+
+def parse_empty(text):
+    return hl.if_else(text == "", hl.missing(hl.tint32), hl.float(text))
+
+
+def append_table(table, out=None, write=False):
+    mt_a = table.annotate_rows(CSQ=table.info.CSQ.first().split("\\|"))
+    # mt_a = mt_a.drop(mt_a.info) # Drop the already split string
+    mt_a = mt_a.annotate_rows(impact=mt_a.CSQ[2])
+    mt_a = mt_a.annotate_rows(gene=mt_a.CSQ[3])
+    mt_a = mt_a.annotate_rows(Entrez_ID=hl.int(parse_empty(mt_a.CSQ[4])))
+    mt_a = mt_a.annotate_rows(AC=mt_a.info.AC)
+    mt_a = mt_a.annotate_rows(CADD_phred=hl.float(parse_empty(mt_a.CSQ[33])))
+    mt_a = mt_a.filter_entries((hl.len(mt_a.filters) == 0), keep=True)  # Remove all not PASS
+    mt_a = mt_a.annotate_rows(gnomAD_exomes_AF=hl.float(parse_empty(mt_a.CSQ[36])))
+    if write and out is not None:
+        mt_a.write(out)
+    return mt_a
+
+
+def parse_tables(tables):
+    mt_tables = []
+    # Positional arguments from VEP annotated CSQ string. TODO: Query from VCF header
+    for i, table in enumerate(tables):
+        mt_tables.append(append_table(table))
+
+    return mt_tables
+
+
+def mts_to_table(tables):
+    for i, tb in enumerate(tables):
+        tb = tb.entries()  # Convert from MatrixTable to Table
+        tables[i] = tb.key_by(tb.gene, tb.Entrez_ID)  # Key by gene
+    return tables
+
+
+def mt_join(mt_list):
+    mt_final = None
+    for i, mt in enumerate(mt_list):
+        if i == 0:
+            mt_final = mt
+        mt_final = hl.experimental.full_outer_join_mt(mt_final, mt)  # An outer join of MatrixTables
+        # mt_final.write(mt_path)
+    return mt_final
+
+
+def table_join(tables_list):
+    # Join Tables into one Table.
+    if tables_list is not None:
+        unioned = tables_list[0]  # Initialize with a single table
+    if len(tables_list) > 1:
+        unioned = unioned.union(*tables_list[1:])
+    return unioned
+
+
+def gnomad_table(unioned):
+    gnomad_tb = unioned.group_by(unioned.gene).aggregate(
+        modifier=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_exomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODIFIER"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.001) & (unioned.gnomAD_exomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("MODIFIER"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.005) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("MODIFIER")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.01) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("MODIFIER")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.10) & (unioned.impact.contains("MODIFIER")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        low=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_exomes_AF < 0.001) & (unioned.impact.contains(hl.literal("LOW"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.001) & (unioned.gnomAD_exomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("LOW"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.005) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("LOW")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.01) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("LOW")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.10) & (unioned.impact.contains("LOW")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        moderate=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_exomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODERATE"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.001) & (unioned.gnomAD_exomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.005) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("MODERATE")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.01) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("MODERATE")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.10) & (unioned.impact.contains("MODERATE")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        high=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_exomes_AF < 0.001) & (unioned.impact.contains(hl.literal("HIGH"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.001) & (unioned.gnomAD_exomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("HIGH"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.005) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("HIGH")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.01) & (unioned.gnomAD_exomes_AF < 0.01) & (
+                unioned.impact.contains("HIGH")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_exomes_AF > 0.10) & (unioned.impact.contains("HIGH")),
+                                     hl.agg.array_sum(unioned.AC)[0])))
+    return gnomad_tb
+
+
+def write_gnomad_table(vcfs, dest, overwrite=False):
+    files = dict()
+    with open(vcfs) as vcflist:
+        for vcfpath in vcflist:
+            stripped = vcfpath.strip()
+            assert os.path.exists(stripped)
+            prefix = file_utility.trim_prefix(os.path.basename(stripped))
+            destination = os.path.join(os.path.dirname(stripped), Path(stripped).stem)
+            if not os.path.exists(destination):
+                # Read all vcfs and make a dict, keeps in memory!
+                files[prefix] = append_table(vcfs_to_matrixtable(stripped, destination, False),
+                                         out=destination, write=True)
+            else:
+                files[prefix] = hl.read_matrix_table(destination)
+
+    # Turn MatrixTables into HailTables, keyed by gene, join
+    unioned_table = table_join(mts_to_table(list(files.values())))
+    gnomad_tb = gnomad_table(unioned_table)
+    if os.path.exists(dest):
+        if not overwrite:
+            raise FileExistsError(dest)
+        else:
+            stderr.write("WARNING: Overwrite is active. Deleting pre-existing filetree {0}".format(dest))
+            shutil.rmtree(dest)
+    else:
+        gnomad_tb.write(dest)
+    return gnomad_tb
 
 
 if __name__ == '__main__':
@@ -68,6 +221,8 @@ if __name__ == '__main__':
                               action="store", type=str)  # TODO: Default value returns None type
         readvcfs.add_argument("-d", "--dest", help="Destination folder to write the Hail MatrixTable files.",
                               nargs='?', const=os.path.abspath("."))
+        readvcfs.add_argument("-r", "--overwrite", help="Overwrites any existing output MatrixTables, HailTables.",
+                              action="store_true")
 
         args = parser.parse_args()
         if args.command is not None:
@@ -82,13 +237,20 @@ if __name__ == '__main__':
                 # Regex in files matching only with a matching regex (e.g. *.vep.vcf wildcard).
                 # Unique files only, duplicates written to duplicates_*.txt
             elif str.lower(args.command) == "readvcfs":
-                print("Turning {0} into MatrixTable in directory {1}".format(args.file, args.dest))
-                mt = vcfs_to_matrixtable(args.file, args.dest)
-                mt.show()
+                print("Turning {0} into HailTable in directory {1}".format(args.file, args.dest))
+                if os.path.exists(args.dest) and not args.overwrite:
+                    gnomad_tb = hl.read_table(args.dest)
+                else:
+                    gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=True)
+                gnomad_tb.describe()
+                gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
 
+        #  Empty stdin string / command
         else:
             parser.print_usage()
-            print("Invalid input, quitting.")
+            # print("Invalid input, quitting.")
+            assert os.path.exists(mt_path)
+            mt = hl.read_matrix_table(mt_path)
 
     except KeyboardInterrupt:
         print("Quitting.")
