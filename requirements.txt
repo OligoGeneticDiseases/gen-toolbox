@@ -1,2 +1,1 @@
-hail
-ipython
+hail>=0.2.98
