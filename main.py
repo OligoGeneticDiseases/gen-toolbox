@@ -196,7 +196,7 @@ def write_gnomad_table(vcfs, dest, overwrite=False):
         if not overwrite:
             raise FileExistsError(dest)
         else:
-            stderr.write("WARNING: Overwrite is active. Deleting pre-existing filetree {0}".format(dest))
+            stderr.write("WARNING: Overwrite is active. Deleting pre-existing filetree {0}\n".format(dest))
             shutil.rmtree(dest)
     else:
         gnomad_tb.write(dest)
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                 if os.path.exists(args.dest) and not args.overwrite:
                     gnomad_tb = hl.read_table(args.dest)
                 else:
-                    gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=True)
+                    gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite)
                 gnomad_tb.describe()
                 gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
 
