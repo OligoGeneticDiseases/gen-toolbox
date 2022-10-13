@@ -181,13 +181,13 @@ def write_gnomad_table(vcfs, dest, overwrite=False):
             stripped = vcfpath.strip()
             assert os.path.exists(stripped)
             prefix = file_utility.trim_prefix(os.path.basename(stripped))
-            destination = os.path.join(os.path.dirname(stripped), Path(stripped).stem)
+            destination = Path(dest).joinpath(Path(stripped).stem)
             if not os.path.exists(destination):
                 # Read all vcfs and make a dict, keeps in memory!
                 files[prefix] = append_table(vcfs_to_matrixtable(stripped, destination, False),
                                          out=destination, write=True)
             else:
-                files[prefix] = hl.read_matrix_table(destination)
+                files[prefix] = hl.read_matrix_table(destination.__str__())
 
     # Turn MatrixTables into HailTables, keyed by gene, join
     unioned_table = table_join(mts_to_table(list(files.values())))
