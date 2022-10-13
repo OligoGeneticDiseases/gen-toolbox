@@ -132,45 +132,6 @@ def gnomad_table(unioned):
             gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
                 unioned.impact.contains("MODIFIER")), hl.agg.array_sum(unioned.AC)[0]),
             gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODIFIER")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
-        low=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("LOW"))),
-                hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
-                unioned.impact.contains(hl.literal("LOW"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("LOW")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("LOW")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("LOW")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
-        moderate=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODERATE"))),
-                hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
-                unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODERATE")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODERATE")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODERATE")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
-        high=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("HIGH"))),
-                hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
-                unioned.impact.contains(hl.literal("HIGH"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("HIGH")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("HIGH")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("HIGH")),
                                      hl.agg.array_sum(unioned.AC)[0])))
     return gnomad_tb
 
