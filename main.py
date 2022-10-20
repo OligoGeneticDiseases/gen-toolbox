@@ -1,16 +1,29 @@
 import argparse
 import os.path
 import shutil
+import file_utility
+from pyspark import *
+
 from pathlib import Path
 from sys import stderr
 
 import hail as hl
-from hailtop.utils import time
 
-import file_utility
+hail_home = Path(hl.__file__).parent.__str__()
 
-mt_path = "/mnt/c/Users/ville/Documents/hail_vep"
-vep_json = "/mnt/c/Users/ville/Documents/VEP_cfg.json"
+conf = SparkConf()
+conf.set('spark.sql.files.maxPartitionBytes', '60000000000')
+conf.set('spark.sql.files.openCostInBytes', '60000000000')
+conf.set('spark.submit.deployMode', u'client')
+conf.set('spark.app.name', u'HailTools-TSHC')
+conf.set('spark.executor.memory', "2g")
+conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
+conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
+conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
+conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
+sc = SparkContext(conf=conf)
+hl.init(backend="spark", sc=sc)
 
 
 def vcfs_to_matrixtable(f, destination=None, write=True):
@@ -132,12 +145,51 @@ def gnomad_table(unioned):
             gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
                 unioned.impact.contains("MODIFIER")), hl.agg.array_sum(unioned.AC)[0]),
             gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODIFIER")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        low=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("LOW"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("LOW"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("LOW")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("LOW")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("LOW")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        moderate=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODERATE"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("MODERATE")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("MODERATE")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODERATE")),
+                                     hl.agg.array_sum(unioned.AC)[0])),
+        high=hl.struct(
+            gnom0001=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("HIGH"))),
+                hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+                unioned.impact.contains(hl.literal("HIGH"))), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("HIGH")),
+                                      hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
+                unioned.impact.contains("HIGH")), hl.agg.array_sum(unioned.AC)[0]),
+            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("HIGH")),
                                      hl.agg.array_sum(unioned.AC)[0])))
     return gnomad_tb
 
 
 def write_gnomad_table(vcfs, dest, overwrite=False):
-    files = dict()
+    hailtables = dict()
     with open(vcfs) as vcflist:
         for vcfpath in vcflist:
             stripped = vcfpath.strip()
@@ -147,21 +199,48 @@ def write_gnomad_table(vcfs, dest, overwrite=False):
             destination = Path(dest).joinpath(Path(stripped).stem)
             if not destination.exists():
                 # Read all vcfs and make a dict, keeps in memory!
-                files[prefix] = append_table(vcfs_to_matrixtable(stripped, destination.__str__(), False),
-                                         out=destination.__str__(), write=True)
+                hailtables[prefix] = append_table(vcfs_to_matrixtable(stripped, destination.__str__(), False),
+                                                  out=destination.__str__(), write=True)
             else:
-                files[prefix] = hl.read_matrix_table(destination.__str__())
+                hailtables[prefix] = hl.read_matrix_table(destination.__str__())
 
     # Turn MatrixTables into HailTables, keyed by gene, join
-    unioned_table = table_join(mts_to_table(list(files.values())))
+    unioned_table = table_join(mts_to_table(list(hailtables.values())))
     gnomad_tb = gnomad_table(unioned_table)
     gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
     if gnomadpath.exists():
         if not overwrite:
             raise FileExistsError(gnomadpath)
         else:
+            stderr.write("WARNING: Overwrite is active. Deleting pre-existing directory {0}\n".format(gnomadpath))
+            gnomadpath.rmdir()  # Will fail if directory is not empty.
+    else:
+        gnomad_tb.write(gnomadpath.__str__())
+    return gnomad_tb
+
+
+def load_hailtables(dest, number, overwrite=False):
+    hailtables = dict()
+    gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
+
+    for folder in dest.iterdir():
+        if folder.is_dir():
+            vcfname = folder.name
+            print(vcfname)
+            if vcfname != "gnomad_tb":  # Skip the folder containing the end product
+                prefix = file_utility.trim_prefix(vcfname)
+                hailtables[prefix] = hl.read_matrix_table(folder.__str__())
+    if number == -1:
+        number = len(hailtables)
+    unioned_table = table_join(mts_to_table(list(hailtables.values())[:number]))
+
+    gnomad_tb = gnomad_table(unioned_table)
+    if gnomadpath.exists():
+        if not overwrite:
+            raise FileExistsError(gnomadpath)
+        else:
             stderr.write("WARNING: Overwrite is active. Deleting pre-existing filetree {0}\n".format(gnomadpath))
-            gnomadpath.rmdir()
+            shutil.rmtree(gnomadpath)
     else:
         gnomad_tb.write(gnomadpath.__str__())
     return gnomad_tb
@@ -187,6 +266,15 @@ if __name__ == '__main__':
                               nargs='?', const=os.path.abspath("."))
         readvcfs.add_argument("-r", "--overwrite", help="Overwrites any existing output MatrixTables, HailTables.",
                               action="store_true")
+        loaddb = subparsers.add_parser("Loaddb", help="Load a folder containing HailTables.")
+        loaddb.add_argument("-d", "--directory", help="Folder to load the Hail MatrixTable files from.",
+                            nargs='?', const=os.path.abspath("."))
+        loaddb.add_argument("-r", "--overwrite", help="Overwrites any existing output MatrixTables, HailTables.",
+                            action="store_true")
+        loaddb.add_argument("-o", "--out", help="Output destination.", action="store", type=str)
+        loaddb.add_argument("-n", "--number", help="Number of tables to be collated.", nargs="?",
+                            type=int,
+                            default=-1)
 
         args = parser.parse_args()
         if args.command is not None:
@@ -202,6 +290,7 @@ if __name__ == '__main__':
                 # Unique files only, duplicates written to duplicates_*.txt
             elif str.lower(args.command) == "readvcfs":
                 print("Turning {0} into HailTable in directory {1}".format(args.file, args.dest))
+
                 if Path(args.dest).joinpath(Path("gnomad_tb")).exists():
                     if not args.overwrite:
                         gnomad_tb = hl.read_table(Path(args.dest).joinpath(Path("gnomad_tb")).__str__())
@@ -211,13 +300,19 @@ if __name__ == '__main__':
                     gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite)
                 gnomad_tb.describe()
                 gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
+            elif str.lower(args.command) == "loaddb":
+                dirpath = Path(args.directory)
+                gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite)
+                gnomad_tb.describe()
+                gnomad_tb.flatten().export(Path(args.out).parent.joinpath("gnomad.tsv").__str__())
+                input("Waiting to exit. Press any key.")
 
         #  Empty stdin string / command
         else:
             parser.print_usage()
             # print("Invalid input, quitting.")
-            assert os.path.exists(mt_path)
-            mt = hl.read_matrix_table(mt_path)
+            # assert os.path.exists(mt_path)
+            # mt = hl.read_matrix_table(mt_path)
 
     except KeyboardInterrupt:
         print("Quitting.")
