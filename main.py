@@ -232,7 +232,7 @@ def load_hailtables(dest, number, overwrite=False):
                 hailtables[prefix] = hl.read_matrix_table(folder.__str__())
     if number == -1:
         number = len(hailtables)
-    unioned_table = table_join(mts_to_table(list(hailtables.values())[:number]))
+    unioned_table = table_join(mts_to_table(list(hailtables.values())))
 
     gnomad_tb = gnomad_table(unioned_table)
     if gnomadpath.exists():
