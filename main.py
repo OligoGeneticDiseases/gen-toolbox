@@ -1,6 +1,8 @@
 import argparse
 import os.path
 import shutil
+import sys
+
 import file_utility
 from pyspark import *
 
@@ -134,57 +136,37 @@ def table_join(tables_list):
 def gnomad_table(unioned):
     gnomad_tb = unioned.group_by(unioned.gene).aggregate(
         modifier=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODIFIER"))),
+            gnomad_1=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.01) & (unioned.impact.contains(hl.literal("MODIFIER"))),
                 hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+            gnomad_1_5=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("MODIFIER"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODIFIER")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODIFIER")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODIFIER")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
+            gnomad_5_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.05) & (
+                unioned.impact.contains("MODIFIER")))),
         low=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("LOW"))),
+            gnomad_1=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.01) & (unioned.impact.contains(hl.literal("LOW"))),
                 hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+            gnomad_1_5=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("LOW"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("LOW")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("LOW")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("LOW")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
+            gnomad_5_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.05) & (
+                unioned.impact.contains("LOW")))),
         moderate=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("MODERATE"))),
+            gnomad_1=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.01) & (unioned.impact.contains(hl.literal("MODERATE"))),
                 hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+            gnomad_1_5=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODERATE")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("MODERATE")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("MODERATE")),
-                                     hl.agg.array_sum(unioned.AC)[0])),
+            gnomad_5_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.05) & (
+                unioned.impact.contains("MODERATE")))),
         high=hl.struct(
-            gnom0001=hl.agg.filter(
-                (unioned.gnomAD_genomes_AF < 0.001) & (unioned.impact.contains(hl.literal("HIGH"))),
+            gnomad_1=hl.agg.filter(
+                (unioned.gnomAD_genomes_AF < 0.01) & (unioned.impact.contains(hl.literal("HIGH"))),
                 hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0005=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.001) & (unioned.gnomAD_genomes_AF < 0.005) & (
+            gnomad_1_5=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("HIGH"))), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0010=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.005) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("HIGH")),
-                                      hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_0100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.01) & (unioned.gnomAD_genomes_AF < 0.01) & (
-                unioned.impact.contains("HIGH")), hl.agg.array_sum(unioned.AC)[0]),
-            gnomad_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.10) & (unioned.impact.contains("HIGH")),
-                                     hl.agg.array_sum(unioned.AC)[0])))
+            gnomad_5_100=hl.agg.filter((unioned.gnomAD_genomes_AF > 0.05) & (
+                unioned.impact.contains("HIGH")))))
     return gnomad_tb
 
 
@@ -219,7 +201,7 @@ def write_gnomad_table(vcfs, dest, overwrite=False):
     return gnomad_tb
 
 
-def load_hailtables(dest, number, overwrite=False):
+def load_hailtables(dest, number, overwrite=False, metadata=None):
     hailtables = dict()
     gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
 
@@ -229,7 +211,12 @@ def load_hailtables(dest, number, overwrite=False):
             print(vcfname)
             if vcfname != "gnomad_tb":  # Skip the folder containing the end product
                 prefix = file_utility.trim_prefix(vcfname)
-                hailtables[prefix] = hl.read_matrix_table(folder.__str__())
+                ht = hl.read_matrix_table(folder.__str__())
+                if metadata is not None:
+                    if prefix in metadata:
+                        ht.annotate_globals(phenotype=metadata[prefix])
+                hailtables[prefix] = ht
+    # TODO: Slicing
     if number == -1:
         number = len(hailtables)
     unioned_table = table_join(mts_to_table(list(hailtables.values())))
@@ -275,6 +262,8 @@ if __name__ == '__main__':
         loaddb.add_argument("-n", "--number", help="Number of tables to be collated.", nargs="?",
                             type=int,
                             default=-1)
+        loaddb.add_argument("-g", "--globals", help="Tab delimited input file containing globals string "
+                                                    "for a given unique sample.", action="store", type=str)
 
         args = parser.parse_args()
         if args.command is not None:
@@ -301,8 +290,22 @@ if __name__ == '__main__':
                 gnomad_tb.describe()
                 gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
             elif str.lower(args.command) == "loaddb":
+                metadata_dict = None
+                if args.globals is not None:
+                    p = Path(args.globals)
+                    metadata_dict = dict()
+                    assert p.exists()
+                    with p.open() as f:
+                        for line in f.readlines():
+                            s = line.strip().split("\\t")
+                            ecode = file_utility.trim_prefix(s[0])
+                            if ecode not in metadata_dict:
+                                metadata_dict[ecode] = s[1]
+                            else:
+                                sys.stderr.write("Found duplicate key {0} for line {1}".format(ecode, s))
+
                 dirpath = Path(args.directory)
-                gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite)
+                gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite, metadata_dict)
                 gnomad_tb.describe()
                 gnomad_tb.flatten().export(Path(args.out).parent.joinpath("gnomad.tsv").__str__())
                 input("Waiting to exit. Press any key.")
