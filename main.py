@@ -249,8 +249,9 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
     if phenotype is not None:
         # Union HailTables with a given phenotype, thereby filtering
         print("Filtering tables based on phenotype {0}".format(phenotype))
-        unioned_table = table_join(mts_to_table(list(filter(lambda t: (t.phenotype == phenotype),
-                                                            hailtables.values()))))
+        unioned_table = table_join(
+            mts_to_table(list(filter(lambda t: (hl.expr.if_else(t.phenotype == phenotype, True, False)),
+                                     hailtables.values()))))
     else:
         # Else union all tables
         unioned_table = table_join(mts_to_table(list(hailtables.values())))
@@ -288,7 +289,7 @@ if __name__ == '__main__':
         readvcfs.add_argument("-r", "--overwrite", help="Overwrites any existing output MatrixTables, HailTables.",
                               action="store_true")
         readvcfs.add_argument("-g", "--globals", help="Tab delimited input file containing globals string "
-                                                    "for a given unique sample.", action="store", type=str)
+                                                      "for a given unique sample.", action="store", type=str)
         loaddb = subparsers.add_parser("Loaddb", help="Load a folder containing HailTables.")
         loaddb.add_argument("-d", "--directory", help="Folder to load the Hail MatrixTable files from.",
                             nargs='?', const=os.path.abspath("."))
