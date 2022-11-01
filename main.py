@@ -129,8 +129,10 @@ def mt_join(mt_list):
 
 def table_join(tables_list):
     # Join Tables into one Table.
-    if tables_list is not None:
+    if tables_list is not None and len(tables_list) > 0:
         unioned = tables_list[0]  # Initialize with a single table
+    else:
+        raise Exception("No tables to be joined based on current configuration.")
     if len(tables_list) > 1:
         unioned = unioned.union(*tables_list[1:])
     return unioned
@@ -235,13 +237,6 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
             if vcfname != "gnomad_tb":  # Skip the folder containing the end product
                 prefix = file_utility.trim_prefix(vcfname)
                 ht = hl.read_matrix_table(folder.__str__())
-                if phenotype != "":
-                    try:
-                        h = ht.phenotype.dtype
-                    except AttributeError:
-                        ht.describe()
-                        raise AttributeError("The current Hailtable does not contain a field for phenotype. "
-                                             "Did you make the hailtables without the --globals flag?")
                 hailtables[prefix] = ht
     # TODO: Slicing
     if number == -1:
@@ -249,9 +244,15 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
     if phenotype is not None:
         # Union HailTables with a given phenotype, thereby filtering
         print("Filtering tables based on phenotype {0}".format(phenotype))
-        unioned_table = table_join(
-            mts_to_table(list(filter(lambda t: (hl.expr.if_else(t.phenotype == phenotype, True, False)),
-                                     hailtables.values()))))
+        matched_tables = list(filter(lambda t: hl.eval(t.phenotype.matches(phenotype, True)),
+                                     hailtables.values()))
+        if len(matched_tables) > 0:
+            sys.stderr.write("Found {0} matching table(s) with given phenotype key.\n".format(len(matched_tables)))
+            unioned_table = table_join(mts_to_table(matched_tables))
+        else:
+            sys.stderr.write("NO tables matched to phenotype \"{0}\".\n".format(phenotype))
+            phens = list(hl.eval(t.phenotype) for t in hailtables.values())
+            raise KeyError("Phenotype keys available: {0}".format(phens))
     else:
         # Else union all tables
         unioned_table = table_join(mts_to_table(list(hailtables.values())))
@@ -263,6 +264,7 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
         else:
             stderr.write("WARNING: Overwrite is active. Deleting pre-existing filetree {0}\n".format(gnomadpath))
             shutil.rmtree(gnomadpath)
+            gnomad_tb.write(gnomadpath.__str__())
     else:
         gnomad_tb.write(gnomadpath.__str__())
     return gnomad_tb
@@ -336,7 +338,7 @@ if __name__ == '__main__':
                 dirpath = Path(args.directory)
                 gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite, args.phenotype)
                 gnomad_tb.describe()
-                gnomad_tb.flatten().export(Path(args.out).parent.joinpath("gnomad.tsv").__str__())
+                gnomad_tb.flatten().export(Path(args.out).parent.joinpath("{0}_gnomad.tsv".format(args.phenotype)).__str__())
                 input("Waiting to exit. Press any key.")
 
         #  Empty stdin string / command
