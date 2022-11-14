@@ -1,7 +1,4 @@
-import argparse
-import itertools
 import os
-from distutils.version import LooseVersion as Version
 
 # Import a faster walker if it is installed
 try:
