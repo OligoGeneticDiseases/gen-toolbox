@@ -3,15 +3,17 @@ import sys
 from pathlib import Path
 import uuid
 import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
-import scipy.stats as sc
+from scipy.stats import norm
+
 
 rv_genes = ["BRCA1", "BRCA2", "CDH1", "PALB2", "TP53"]
 fraction_results = pd.DataFrame()
 
 
-def permutation_analysis(gene_list, df_case, df_control, iterations=100):
+def permutation_analysis(gene_list, df_case, df_control, iterations=20000):
     all_genes = df_case.gene
     case_genes_length = len(gene_list)  # e.g. 5 genes
     for i in range(1,
@@ -25,15 +27,32 @@ def permutation_analysis(gene_list, df_case, df_control, iterations=100):
             total_variants_case = sampled_rows.iloc[:case_genes_length, i].sort_index()
             control_samples = df_control.iloc[total_variants_case.index.array, i].sort_index()
             if total_variants_case.isna().sum() != case_genes_length and control_samples.isna().sum() != case_genes_length:
-                vals.append(total_variants_case.sum() / control_samples.sum())
+                vals.append((total_variants_case.sum() / control_samples.sum()) / case_genes_length)
             else:
                 vals.append(np.NaN)
             j += 1
         # sc.monte_carlo_test()
         fraction_results[column_name] = vals
     print(fraction_results)
-    fraction_results["modifier.gnomad_1"] = fraction_results["modifier.gnomad_1"].astype(dtype=float)
-    fraction_results["modifier.gnomad_1"].plot()
+    #fraction_results["low.gnomad_5_100"] = np.log2(fraction_results["low.gnomad_5_100"].astype(dtype=float))
+    #plt.hist(fraction_results["low.gnomad_5_100"], density=True, log=True, histtype="stepfilled", bins=100)
+    #plt.hlines(data=fraction_results["low.gnomad_5_100_log"])
+    fig, axs = plt.subplots(len(fraction_results.columns), sharex=True, tight_layout=True, figsize=(20, 45))
+
+    i=0
+    for frequency in fraction_results.columns:
+        fraction_results[frequency] = np.log2(fraction_results[frequency].astype(dtype=float))
+        if fraction_results[frequency].any():
+            mu, std = norm.fit(fraction_results[frequency].dropna())
+            xmin, xmax = fraction_results[frequency].dropna().min(), fraction_results[frequency].dropna().max()
+            x = np.linspace(xmin, xmax, 100)
+            p = norm.pdf(x, mu, std)
+
+            #axs[i].plot(x, p, 'k', linewidth=2)
+            axs[i].hist(fraction_results[frequency], density=True,
+                        log=False, histtype="stepfilled", bins=500)
+            axs[i].set_title('{0}: fit values mu ({1}) std({2})'.format(fraction_results[frequency].name, np.round(mu, 2), np.round(std, 2)))
+        i += 1
     plt.show()
 
 
