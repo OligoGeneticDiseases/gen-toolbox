@@ -99,7 +99,7 @@ def write_filelist(dir, file_name, file_paths, include_duplicates=False, verbose
     :param file_name: Name of the file to be written to.
     :param file_paths: The filepaths as an array of tuples. Filename and filepath.
     :param include_duplicates: Whether to include duplicate files into the list. False by default.
-    If False, write duplicate filename-paths into a seperate file duplicate_.*
+    If False, write duplicate filename-paths into a separate file duplicate_.*
     :param verbose level: Verbosity of stdout. Prints filepaths that are looked at. Default 1. Show
     Total values but no lines in the terminal, 0 turns off all terminal response. TODO: Convert to logging
     :param regex: regex expression to be evaluated. For example, try to match only certain files containing a string.
@@ -107,15 +107,16 @@ def write_filelist(dir, file_name, file_paths, include_duplicates=False, verbose
     :return: Returns tuple of (<all paths written to the main file>, <duplicate files written out or empty list>)
     '''
     try:
+        regex_rules = None
         if regex is not None:
             # It is more efficient to compile once and reuse the regex object.
             regex_rules = re.compile(regex, flags=re.I)
-            print(regex_rules)
+            #print(regex_rules)
         with open(os.path.join(dir, file_name), "w") as f:
             all_paths = list()
             unique_prefixes = list()
             duplicate_prefixes = list()
-
+            regexed_out = 0
             file_paths.sort(key=lambda pair: pair[0])
             for file_path_pair in file_paths:
                 full_path = file_path_pair[1]
@@ -130,6 +131,10 @@ def write_filelist(dir, file_name, file_paths, include_duplicates=False, verbose
                             f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
                             if verbose > 1:
                                 print("Unique regexed: {0}".format(full_path))
+                        else:
+                            regexed_out += 1
+                            if verbose > 1:
+                                print("No regex match for: {0}".format(full_path))
                     else:
                         unique_prefixes.append(prefix)  # it is unique and added to the list
                         f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
@@ -154,9 +159,10 @@ def write_filelist(dir, file_name, file_paths, include_duplicates=False, verbose
 
 
             if verbose > 0:
-                print("Writing filelist to {}".format(os.path.join(dir, file_name)))
-                print("Total files: {}".format(len(file_paths)))
+                print("Writing list to {}".format(os.path.join(dir, file_name)))
+                print("Total lines: {}".format(len(file_paths)))
                 print("Duplicate prefixes: {}".format(len(duplicate_prefixes)))
+                print("Regex matches {0}, regex filtered out {1} lines.".format(len(unique_prefixes), regexed_out))
             if not include_duplicates:  # write the duplicates to a separate file
                 duplicate_filename = os.path.join(dir, "duplicates_" + file_name)
                 if len(duplicate_prefixes) > 0:

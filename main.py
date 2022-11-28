@@ -2,30 +2,18 @@ import argparse
 import os.path
 import shutil
 import sys
-
-import file_utility
-from pyspark import *
-
 from pathlib import Path
 from sys import stderr
 
 import hail as hl
+from pyspark import *
+
+import file_utility
 
 hail_home = Path(hl.__file__).parent.__str__()
 
-conf = SparkConf()
-conf.set('spark.sql.files.maxPartitionBytes', '60000000000')
-conf.set('spark.sql.files.openCostInBytes', '60000000000')
-conf.set('spark.submit.deployMode', u'client')
-conf.set('spark.app.name', u'HailTools-TSHC')
-conf.set('spark.executor.memory', "4g")
-conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
-conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
-conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
-conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
-sc = SparkContext(conf=conf)
-hl.init(backend="spark", sc=sc)
+
+
 
 
 def vcfs_to_matrixtable(f, destination=None, write=True):
@@ -273,7 +261,8 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
 if __name__ == '__main__':
     try:
 
-        parser = argparse.ArgumentParser(prog="Annotation pipeline command-line file tool.")
+        parser = argparse.ArgumentParser(prog="Gnomad frequency table burden analysis pipeline command-line tool using "
+                                              "Hail\n{0}".format(hl.cite_hail()))
         subparsers = parser.add_subparsers(title="commands", dest="command")
         findtype = subparsers.add_parser("Findtype", help="Find all specific files of a given filetype.")
         findtype.add_argument("-s", "--source", help="Directory to be searched.", action="store", type=str)
@@ -311,35 +300,50 @@ if __name__ == '__main__':
 
             if str.lower(args.command) == "findtype":
                 # print(findtypes(args.directory, args.type))
-                files = file_utility.find_filetype(args.source, args.type)
+                files = file_utility.find_filetype(args.source, args.type, verbose=False)
 
                 file_utility.write_filelist(args.directory, "{0}.{1}.txt".format(os.path.basename(
                     os.path.normpath(args.source)), args.type), files, regex=args.regex)
                 # Convert the directory into a name for the file, passing found files with
                 # Regex in files matching only with a matching regex (e.g. *.vep.vcf wildcard).
                 # Unique files only, duplicates written to duplicates_*.txt
-            elif str.lower(args.command) == "readvcfs":
 
-                if Path(args.dest).joinpath(Path("gnomad_tb")).exists():
-                    if not args.overwrite:
-                        gnomad_tb = hl.read_table(Path(args.dest).joinpath(Path("gnomad_tb")).__str__())
+            else:
+                conf = SparkConf()
+                conf.set('spark.sql.files.maxPartitionBytes', '60000000000')
+                conf.set('spark.sql.files.openCostInBytes', '60000000000')
+                conf.set('spark.submit.deployMode', u'client')
+                conf.set('spark.app.name', u'HailTools-TSHC')
+                conf.set('spark.executor.memory', "4g")
+                conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
+                conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
+                conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
+                conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+                conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
+                sc = SparkContext(conf=conf)
+                hl.init(backend="spark", sc=sc)
+                if str.lower(args.command) == "readvcfs":
+
+                    if Path(args.dest).joinpath(Path("gnomad_tb")).exists():
+                        if not args.overwrite:
+                            gnomad_tb = hl.read_table(Path(args.dest).joinpath(Path("gnomad_tb")).__str__())
+                        else:
+                            gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite,
+                                                           metadata=args.globals)
                     else:
                         gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite,
                                                        metadata=args.globals)
-                else:
-                    gnomad_tb = write_gnomad_table(args.file, args.dest, overwrite=args.overwrite,
-                                                   metadata=args.globals)
-                gnomad_tb.describe()
-                gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
-            elif str.lower(args.command) == "loaddb":
-                if args.globals is not None:
-                    metadata_dict = get_metadata(args.globals)
+                    gnomad_tb.describe()
+                    gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
+                elif str.lower(args.command) == "loaddb":
+                    if args.globals is not None:
+                        metadata_dict = get_metadata(args.globals)
 
-                dirpath = Path(args.directory)
-                gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite, args.phenotype)
-                gnomad_tb.describe()
-                gnomad_tb.flatten().export(Path(args.out).parent.joinpath("{0}_gnomad.tsv".format(args.phenotype)).__str__())
-                input("Waiting to exit. Press any key.")
+                    dirpath = Path(args.directory)
+                    gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite, args.phenotype)
+                    gnomad_tb.describe()
+                    gnomad_tb.flatten().export(Path(args.out).parent.joinpath("{0}_gnomad.tsv".format(args.phenotype)).__str__())
+                    input("Waiting to exit. Press any key.")
 
         #  Empty stdin string / command
         else:
