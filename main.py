@@ -13,9 +13,6 @@ import file_utility
 hail_home = Path(hl.__file__).parent.__str__()
 
 
-
-
-
 def vcfs_to_matrixtable(f, destination=None, write=True):
     files = list()
     if type(f) is list:
