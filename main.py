@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import glob
 import os.path
 import re
@@ -13,7 +14,7 @@ from pyspark import *
 import file_utility
 
 hail_home = Path(hl.__file__).parent.__str__()
-
+unique = hash(datetime.datetime.utcnow())
 def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
     files = list()
     if type(f) is list:
@@ -86,16 +87,20 @@ def append_table(table, prefix, out=None, write=False, metadata=None):
     # mt_a = mt_a.annotate_rows(gnomAD_exomes_AF=hl.float(parse_empty(mt_a.CSQ[36])))
     # mt_a = mt_a.annotate_rows(MAX_AF=hl.float(parse_empty(mt_a.CSQ[40])))
     mt_a = table
-    mt_a = mt_a.filter_entries((hl.len(mt_a.filters) == 0), keep=True)  # Remove all not PASS
     mt_a = mt_a.annotate_rows(VEP_str=mt_a.vep.first().split("\\|"))
-    mt_a = mt_a.annotate_entries(AC=mt_a.GT.n_alt_alleles())
+    mt_a = mt_a.annotate_entries(AC=mt_a.GT.n_alt_alleles(),
+                                 VF=hl.float(mt_a.AD[1]/mt_a.DP))
     mt_a = mt_a.annotate_rows(impact=mt_a.VEP_str[0],
                               gene=mt_a.VEP_str[1],
                               HGNC_ID=hl.int(parse_empty(mt_a.VEP_str[2])),
                               MAX_AF=hl.float(parse_empty(mt_a.VEP_str[3])))
-
+    mt_a = mt_a.drop(mt_a.info)
+    mt_a = mt_a.filter_entries(mt_a.VF>=0.3, keep=True)  # Remove all not ALT_pos/DP < 0.3
     if metadata is not None:
-        mt_a = mt_a.annotate_globals(phenotype=metadata.get(prefix, "NA"))
+        phen, mut = metadata.get(prefix, ["NA","NA"])
+        if len(phen) == 0: phen="NA"
+        if len(mut) == 0: mut = "NA"
+        mt_a = mt_a.annotate_globals(metadata=hl.struct(phenotype = phen, mutation=mut))
 
     if write and out is not None:
         mt_a.write(out)
@@ -135,7 +140,7 @@ def table_join(tables_list):
     else:
         raise Exception("No tables to be joined based on current configuration.")
     if len(tables_list) > 1:
-        unioned = unioned.union(*tables_list[1:])
+        unioned = unioned.union(*tables_list[1:], unify=True)
     return unioned
 
 
@@ -149,16 +154,17 @@ def get_metadata(metadata_path):
             ecode = file_utility.trim_prefix(s[0])
             if ecode not in metadata_dict:
                 if len(s) >= 2:
-                    metadata_dict[ecode] = s[1:]
+                    metadata_dict[ecode] = [s[1], s[2]]
                 else:
-                    metadata_dict[ecode] = "NA"
+                    metadata_dict[ecode] = ["NA", "NA"]
             else:
-                sys.stderr.write("Found duplicate key {0} for line {1}. Existing object {2}."
+                sys.stderr.write("Found duplicate key {0} for line {1}. Existing object {2}.\n"
                                  .format(ecode, s, (ecode, metadata_dict[ecode])))
     return metadata_dict
 
 
 def gnomad_table(unioned):
+    sys.stderr.write("Creating MAX_AF_frequency table\n")
     gnomad_tb = unioned.group_by(unioned.gene).aggregate(
         modifier=hl.struct(
             gnomad_1=hl.agg.filter(
@@ -196,6 +202,7 @@ def gnomad_table(unioned):
 
 
 def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
+    gnomad_tb = None
     hailtables = dict()
     metadata_dict = get_metadata(metadata)
     for vcfpath in vcfs:
@@ -216,9 +223,9 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
 
 
 # Turn MatrixTables into HailTables, keyed by gene, join
-    unioned_table = table_join(mts_to_table(list(hailtables.values())))
+    #TODO: unioned_table = table_join(mts_to_table(list(hailtables.values())))
 
-    gnomad_tb = gnomad_table(unioned_table)
+    #TODO: gnomad_tb = gnomad_table(unioned_table)
     gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
     if gnomadpath.exists():
         if not overwrite:
@@ -227,44 +234,71 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
             stderr.write("WARNING: Overwrite is active. Deleting pre-existing directory {0}\n".format(gnomadpath))
             shutil.rmtree(gnomadpath)
     else:
-        gnomad_tb.write(gnomadpath.__str__())
+        #TODO: gnomad_tb.write(gnomadpath.__str__())
+        pass
     return gnomad_tb
 
 
-def load_hailtables(dest, number, overwrite=False, phenotype=None):
+def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phenotype=None):
     hailtables = dict()
-    gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
+    gnomadpath = Path(dest).joinpath(Path("gnomad_tb", str(unique)))
+    ### TODO: Remove temporary fix
+    gnomad_tb = None
+    ###
+    count = sum(1 for t in dest.iterdir())
+    sys.stderr.write("{0} items in folder {1}\n".format(count, str(dest)))
+    i = 0
+    toolbar_width = 1 if count//10 == 0 else count//10
+    # setup toolbar
+    sys.stderr.write("Loading MatrixTables\n Progress\n")
 
-    for folder in dest.iterdir():
+    for idx, folder in enumerate(dest.iterdir(), 1):
         if folder.is_dir():
             vcfname = folder.name
-            print(vcfname)
-            if vcfname != "gnomad_tb":  # Skip the folder containing the end product
+            outpath = Path(out).joinpath(vcfname)
+            #print(vcfname)
+            if vcfname.rfind("gnomad_tb") == -1:  # Skip the folders containing the end product
                 prefix = file_utility.trim_prefix(vcfname)
-                ht = hl.read_matrix_table(folder.__str__())
-                hailtables[prefix] = ht
+                mt_a = hl.read_matrix_table(folder.__str__())
+                if metadata is not None:
+                    # mt_a.write(outpath.__str__()) #Hail scripts in here fix loaded MatrixTables
+                    # and outputs into new args.out
+                   #mt_a.drop('phenotype')
+                    #phen, mut = metadata.get(prefix, ["NA", "NA"])
+                    #mt_a = mt_a.annotate_globals(metadata=hl.struct(phenotype=phen, mutation=mut))
+                    #mt_a.write(outpath.__str__())
+                    #mt_a.describe()
+
+                    pass
+                hailtables[prefix] = mt_a
+                if idx//toolbar_width >= i:
+                    sys.stderr.write("[{0}] Done {1}%\n".format("x"*(toolbar_width//10)*(i)+"-"*(toolbar_width//10)*(10-i), idx//toolbar_width*10))
+                    i+=1
+
     # TODO: Slicing
-    print("Found {0} HailTables".format(len(hailtables.values())))
+    print("Read {0} HailTables".format(len(hailtables.values())))
     if number == -1:
         number = len(hailtables)
     if phenotype is not None:
         # Union HailTables with a given phenotype, thereby filtering
-        print("Filtering tables based on phenotype \"{0}\"".format(phenotype))
+        sys.stderr.write("Filtering tables based on phenotype \"{0}\"\n".format(phenotype))
 
-        matched_tables = list(filter(lambda t: hl.eval(t.phenotype.matches(phenotype)),
+        matched_tables = list(filter(lambda t: hl.eval(t.metadata.phenotype.matches(phenotype)),
                                      hailtables.values()))
         if len(matched_tables) > 0:
             sys.stderr.write("Found {0} matching table(s) with given phenotype key\n".format(len(matched_tables)))
             unioned_table = table_join(mts_to_table(matched_tables))
         else:
             sys.stderr.write("NO tables matched to phenotype \"{0}\"\n".format(phenotype))
-            phens = list(hl.eval(t.phenotype) for t in hailtables.values())
-            raise KeyError("Phenotype keys available: \"{0}\"".format(phens))
+            phens = list(hl.eval(t.metadata.phenotype) for t in hailtables.values())
+            raise KeyError("Phenotype keys available: {0}".format(phens))
     else:
         # Else union all tables
         unioned_table = table_join(mts_to_table(list(hailtables.values())))
+        sys.stderr.write("Writing intermediary unioned table to {0}\n".format(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique)))
+        #unioned_table.write(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique))
 
-    gnomad_tb = gnomad_table(unioned_table)
+    ### TODO: gnomad_tb = gnomad_table(unioned_table)
     if gnomadpath.exists():
         if not overwrite:
             raise FileExistsError(gnomadpath)
@@ -273,7 +307,8 @@ def load_hailtables(dest, number, overwrite=False, phenotype=None):
             shutil.rmtree(gnomadpath)
             gnomad_tb.write(gnomadpath.__str__())
     else:
-        gnomad_tb.write(gnomadpath.__str__())
+        #TODO: gnomad_tb.write(gnomadpath.__str__())
+        pass
     return gnomad_tb
 
 
@@ -300,7 +335,9 @@ if __name__ == '__main__':
         readvcfs.add_argument("-r", "--overwrite", help="Overwrites any existing output MatrixTables, HailTables.",
                               action="store_true")
         readvcfs.add_argument("-g", "--globals", help="Tab delimited input file containing globals string "
-                                                      "for a given unique sample.", action="store", type=str)
+                                                      "for a given unique sample "
+                                                      "(e.g. Identifier\\t.Phenotype\\tMutations", action="store",
+                              type=str)
         loaddb = subparsers.add_parser("Loaddb", help="Load a folder containing HailTables.")
         loaddb.add_argument("-d", "--directory", help="Folder to load the Hail MatrixTable files from.",
                             nargs='?', const=os.path.abspath("."))
@@ -370,20 +407,19 @@ if __name__ == '__main__':
                     else:
                         gnomad_tb = write_gnomad_table(files, args.dest, overwrite=args.overwrite,
                                                        metadata=args.globals)
-                    gnomad_tb.describe()
-                    gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
+                    #gnomad_tb.describe()
+                    #TODO: gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
                 elif str.lower(args.command) == "loaddb":
+                    metadata_dict = None
                     if args.globals is not None:
                         metadata_dict = get_metadata(args.globals)
 
                     dirpath = Path(args.directory)
-                    gnomad_tb = load_hailtables(dirpath, args.number, args.overwrite, args.phenotype)
+                    gnomad_tb = load_hailtables(dirpath, args.number, args.out, metadata_dict, args.overwrite, args.phenotype)
                     gnomad_tb.describe()
-                    gnomad_tb.flatten().export(Path(args.out).parent.joinpath("{0}_gnomad.tsv".format(args.phenotype)).__str__())
-                    input("Waiting to exit. Press any key.")
-
-        #  Empty stdin string / command
+                    gnomad_tb.flatten().export(Path(args.out).parent.joinpath("gnomad_tb{0}.tsv".format(unique)).__str__())
         else:
+            # No valid command
             parser.print_usage()
             # print("Invalid input, quitting.")
             # assert os.path.exists(mt_path)
