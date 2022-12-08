@@ -118,8 +118,9 @@ def parse_tables(tables):
 
 def mts_to_table(tables):
     for i, tb in enumerate(tables):
+        tb = tb.key_cols_by()
         tb = tb.entries()  # Convert from MatrixTable to Table
-        tables[i] = tb.key_by(tb.gene, tb.HGNC_ID)  # Key by gene
+        tables[i] = tb.key_by(tb.gene)  # Key by gene
     return tables
 
 
@@ -141,7 +142,7 @@ def table_join(tables_list):
         raise Exception("No tables to be joined based on current configuration.")
     if len(tables_list) > 1:
         unioned = unioned.union(*tables_list[1:], unify=True)
-    return unioned
+    return unioned.cache()
 
 
 def get_metadata(metadata_path):
@@ -163,17 +164,17 @@ def get_metadata(metadata_path):
     return metadata_dict
 
 
-def gnomad_table(unioned):
+def gnomad_table(unioned, text="modifier"):
     sys.stderr.write("Creating MAX_AF_frequency table\n")
     gnomad_tb = unioned.group_by(unioned.gene).aggregate(
         modifier=hl.struct(
             gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("MODIFIER"))),
+                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal(text))),
                 hl.agg.sum(unioned.AC)),
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
-                unioned.impact.contains(hl.literal("MODIFIER"))), hl.agg.sum(unioned.AC)),
+                unioned.impact.contains(hl.literal(text))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains("MODIFIER")), hl.agg.sum(unioned.AC))),
+                unioned.impact.contains(text)), hl.agg.sum(unioned.AC))),
         low=hl.struct(
             gnomad_1=hl.agg.filter(
                 (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("LOW"))),
@@ -197,7 +198,8 @@ def gnomad_table(unioned):
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("HIGH"))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains("HIGH")), hl.agg.sum(unioned.AC))))
+                unioned.impact.contains("HIGH")), hl.agg.sum(unioned.AC)))
+    )
     return gnomad_tb
 
 
@@ -223,9 +225,9 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
 
 
 # Turn MatrixTables into HailTables, keyed by gene, join
-    #TODO: unioned_table = table_join(mts_to_table(list(hailtables.values())))
+    unioned_table = table_join(mts_to_table(list(hailtables.values())))
 
-    #TODO: gnomad_tb = gnomad_table(unioned_table)
+    gnomad_tb = gnomad_table(unioned_table)
     gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
     if gnomadpath.exists():
         if not overwrite:
@@ -234,16 +236,26 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
             stderr.write("WARNING: Overwrite is active. Deleting pre-existing directory {0}\n".format(gnomadpath))
             shutil.rmtree(gnomadpath)
     else:
-        #TODO: gnomad_tb.write(gnomadpath.__str__())
+        gnomad_tb.write(gnomadpath.__str__())
         pass
     return gnomad_tb
 
-
+def _not(func):
+    """
+    https://stackoverflow.com/questions/33989155/is-there-a-filter-opposite-builtin
+    :param func:
+    :return:
+    """
+    def not_func(*args, **kwargs):
+        return not func(*args, **kwargs)
+    return not_func
 def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phenotype=None):
     hailtables = dict()
     gnomadpath = Path(dest).joinpath(Path("gnomad_tb", str(unique)))
     ### TODO: Remove temporary fix
     gnomad_tb = None
+    ecode_phenotype = dict()
+    inverse_matches = dict()
     ###
     count = sum(1 for t in dest.iterdir())
     sys.stderr.write("{0} items in folder {1}\n".format(count, str(dest)))
@@ -260,6 +272,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
             if vcfname.rfind("gnomad_tb") == -1:  # Skip the folders containing the end product
                 prefix = file_utility.trim_prefix(vcfname)
                 mt_a = hl.read_matrix_table(folder.__str__())
+                #mt_a.cache()
                 if metadata is not None:
                     # mt_a.write(outpath.__str__()) #Hail scripts in here fix loaded MatrixTables
                     # and outputs into new args.out
@@ -270,7 +283,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
                     #mt_a.describe()
 
                     pass
-                hailtables[prefix] = mt_a
+                hailtables[prefix] = mt_a.cache()
                 if idx//toolbar_width >= i:
                     sys.stderr.write("[{0}] Done {1}%\n".format("x"*(toolbar_width//10)*(i)+"-"*(toolbar_width//10)*(10-i), idx//toolbar_width*10))
                     i+=1
@@ -282,9 +295,14 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
     if phenotype is not None:
         # Union HailTables with a given phenotype, thereby filtering
         sys.stderr.write("Filtering tables based on phenotype \"{0}\"\n".format(phenotype))
+        for key, ht in hailtables.items():
+            #ecode_phenotype[key] = hl.eval(ht.metadata.phenotype)
+            #TODO: Load phenotypes once to increase speed of dict searches
+            pass
 
+        #matched_tables = list(filter(lambda k, t: t.startswith(phenotype), ecode_phenotype.items()))
         matched_tables = list(filter(lambda t: hl.eval(t.metadata.phenotype.matches(phenotype)),
-                                     hailtables.values()))
+                    hailtables.values()))
         if len(matched_tables) > 0:
             sys.stderr.write("Found {0} matching table(s) with given phenotype key\n".format(len(matched_tables)))
             unioned_table = table_join(mts_to_table(matched_tables))
@@ -298,7 +316,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
         sys.stderr.write("Writing intermediary unioned table to {0}\n".format(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique)))
         #unioned_table.write(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique))
 
-    ### TODO: gnomad_tb = gnomad_table(unioned_table)
+    gnomad_tb = gnomad_table(unioned_table)
     if gnomadpath.exists():
         if not overwrite:
             raise FileExistsError(gnomadpath)
@@ -307,7 +325,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
             shutil.rmtree(gnomadpath)
             gnomad_tb.write(gnomadpath.__str__())
     else:
-        #TODO: gnomad_tb.write(gnomadpath.__str__())
+        gnomad_tb.write(gnomadpath.__str__())
         pass
     return gnomad_tb
 
@@ -372,14 +390,15 @@ if __name__ == '__main__':
                 conf.set('spark.sql.files.openCostInBytes', '60000000000')
                 conf.set('spark.submit.deployMode', u'client')
                 conf.set('spark.app.name', u'HailTools-TSHC')
-                conf.set('spark.executor.memory', "4g")
+                conf.set('spark.executor.memory', "7g")
+                conf.set('spark.driver.memory', "7g")
                 conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
                 conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
                 conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
                 conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
                 sc = SparkContext(conf=conf)
-                hl.init(backend="spark", sc=sc)
+                hl.init(backend="spark", sc=sc, min_block_size=128)
                 if str.lower(args.command) == "readvcfs":
                     full_paths = [Path(path) for path in args.file]
                     files = set()
@@ -408,7 +427,7 @@ if __name__ == '__main__':
                         gnomad_tb = write_gnomad_table(files, args.dest, overwrite=args.overwrite,
                                                        metadata=args.globals)
                     #gnomad_tb.describe()
-                    #TODO: gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
+                    gnomad_tb.flatten().export(Path(args.dest).parent.joinpath("gnomad.tsv").__str__())
                 elif str.lower(args.command) == "loaddb":
                     metadata_dict = None
                     if args.globals is not None:
