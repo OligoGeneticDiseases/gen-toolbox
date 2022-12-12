@@ -12,7 +12,8 @@ The project is directed by Tartu University Hospital Centre of Medical Genetics 
 2.	Insert the VEP annotator perl script location to the config file
 3.	Docker image build -t oligogenicity:latest .
 4.	Docker run -v {path to VEP}:{path in config} –help
-Alternatively 
+
+### Alternatively 
 1.	clone the project
 2.	Insert the VEP annotator perl script location to the config file
 3.	Activate a local python 3 venv env
