@@ -149,7 +149,7 @@ def get_metadata(metadata_path):
     p = Path(metadata_path)
     metadata_dict = dict()
     assert p.exists()
-    with p.open() as f:
+    with p.open(encoding="latin-1") as f:
         for line in f.readlines():
             s = line.strip().split("\t")
             ecode = file_utility.trim_prefix(s[0])
@@ -169,12 +169,12 @@ def gnomad_table(unioned, text="modifier"):
     gnomad_tb = unioned.group_by(unioned.gene).aggregate(
         modifier=hl.struct(
             gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal(text))),
+                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("MODIFIER"))),
                 hl.agg.sum(unioned.AC)),
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
-                unioned.impact.contains(hl.literal(text))), hl.agg.sum(unioned.AC)),
+                unioned.impact.contains(hl.literal("MODIFIER"))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains(text)), hl.agg.sum(unioned.AC))),
+                unioned.impact.contains(hl.literal("MODIFIER"))), hl.agg.sum(unioned.AC))),
         low=hl.struct(
             gnomad_1=hl.agg.filter(
                 (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("LOW"))),
@@ -182,7 +182,7 @@ def gnomad_table(unioned, text="modifier"):
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("LOW"))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains("LOW")), hl.agg.sum(unioned.AC))),
+                unioned.impact.contains(hl.literal("LOW"))), hl.agg.sum(unioned.AC))),
         moderate=hl.struct(
             gnomad_1=hl.agg.filter(
                 (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("MODERATE"))),
@@ -190,7 +190,7 @@ def gnomad_table(unioned, text="modifier"):
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains("MODERATE")), hl.agg.sum(unioned.AC))),
+                unioned.impact.contains(hl.literal("MODERATE"))), hl.agg.sum(unioned.AC))),
         high=hl.struct(
             gnomad_1=hl.agg.filter(
                 (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("HIGH"))),
@@ -198,7 +198,7 @@ def gnomad_table(unioned, text="modifier"):
             gnomad_1_5=hl.agg.filter((unioned.MAX_AF > 0.01) & (unioned.MAX_AF < 0.05) & (
                 unioned.impact.contains(hl.literal("HIGH"))), hl.agg.sum(unioned.AC)),
             gnomad_5_100=hl.agg.filter((unioned.MAX_AF > 0.05) & (
-                unioned.impact.contains("HIGH")), hl.agg.sum(unioned.AC)))
+                unioned.impact.contains(hl.literal("HIGH"))), hl.agg.sum(unioned.AC)))
     )
     return gnomad_tb
 
@@ -283,7 +283,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
                     #mt_a.describe()
 
                     pass
-                hailtables[prefix] = mt_a.cache()
+                hailtables[prefix] = mt_a
                 if idx//toolbar_width >= i:
                     sys.stderr.write("[{0}] Done {1}%\n".format("x"*(toolbar_width//10)*(i)+"-"*(toolbar_width//10)*(10-i), idx//toolbar_width*10))
                     i+=1
@@ -313,7 +313,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
     else:
         # Else union all tables
         unioned_table = table_join(mts_to_table(list(hailtables.values())))
-        sys.stderr.write("Writing intermediary unioned table to {0}\n".format(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique)))
+        #sys.stderr.write("Writing intermediary unioned table to {0}\n".format(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique)))
         #unioned_table.write(gnomadpath.parent.__str__() + "\gnomad_tb_unioned" + str(unique))
 
     gnomad_tb = gnomad_table(unioned_table)
@@ -390,13 +390,15 @@ if __name__ == '__main__':
                 conf.set('spark.sql.files.openCostInBytes', '60000000000')
                 conf.set('spark.submit.deployMode', u'client')
                 conf.set('spark.app.name', u'HailTools-TSHC')
-                conf.set('spark.executor.memory', "7g")
-                conf.set('spark.driver.memory', "7g")
+                conf.set('spark.executor.memory', "4g")
+                conf.set('spark.driver.memory', "56g")
                 conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
                 conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
                 conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
                 conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
+                conf.set("spark.driver.bindAddress", "127.0.0.1")
+                conf.set("spark.local.dir", "{0}".format(args.out))
                 sc = SparkContext(conf=conf)
                 hl.init(backend="spark", sc=sc, min_block_size=128)
                 if str.lower(args.command) == "readvcfs":
