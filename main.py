@@ -95,7 +95,7 @@ def append_table(table, prefix, out=None, write=False, metadata=None):
                               HGNC_ID=hl.int(parse_empty(mt_a.VEP_str[2])),
                               MAX_AF=hl.float(parse_empty(mt_a.VEP_str[3])))
     mt_a = mt_a.drop(mt_a.info)
-    mt_a = mt_a.filter_entries(mt_a.VF>=0.3, keep=True)  # Remove all not ALT_pos/DP < 0.3
+    mt_a = mt_a.filter_entries(mt_a.VF>=0.3, keep=True)  # Remove all not ALT_pos < 0.3 / DP > 20
     if metadata is not None:
         phen, mut = metadata.get(prefix, ["NA","NA"])
         if len(phen) == 0: phen="NA"
@@ -283,7 +283,7 @@ def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phen
                     #mt_a.describe()
 
                     pass
-                hailtables[prefix] = mt_a
+                hailtables[prefix] = mt_a.filter_entries(mt_a.DP > 30)
                 if idx//toolbar_width >= i:
                     sys.stderr.write("[{0}] Done {1}%\n".format("x"*(toolbar_width//10)*(i)+"-"*(toolbar_width//10)*(10-i), idx//toolbar_width*10))
                     i+=1
