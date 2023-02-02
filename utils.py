@@ -240,30 +240,10 @@ def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
     # recode = {f"chr{i}":f"{i}" for i in (list(range(1, 23)) + ['X', 'Y'])}
     # Can import only samples of the same key (matrixtable join), if input is list of vcfs
 
-    table = hl.import_vcf(files, force=True, reference_genome='GRCh37', contig_recoding={"chr1": "1",
-                                                                                         "chr2": "2",
-                                                                                         "chr3": "3",
-                                                                                         "chr4": "4",
-                                                                                         "chr5": "5",
-                                                                                         "chr6": "6",
-                                                                                         "chr7": "7",
-                                                                                         "chr8": "8",
-                                                                                         "chr9": "9",
-                                                                                         "chr10": "10",
-                                                                                         "chr11": "11",
-                                                                                         "chr12": "12",
-                                                                                         "chr13": "13",
-                                                                                         "chr14": "14",
-                                                                                         "chr15": "15",
-                                                                                         "chr16": "16",
-                                                                                         "chr17": "17",
-                                                                                         "chr18": "18",
-                                                                                         "chr19": "19",
-                                                                                         "chr20": "20",
-                                                                                         "chr21": "21",
-                                                                                         "chr22": "22",
-                                                                                         "chrX": "X",
-                                                                                         "chrY": "Y"})
+    contig_prefix = "chr"
+    contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
+    contig_recoding.update({"chrX": "X", "chrY": "Y"})
+    table = hl.import_vcf(files, force=True, reference_genome='GRCh37', contig_recoding=contig_recoding)
 
     if annotate:
         table = table.filter_rows(table.alleles[1] != '*')  # These alleles break VEP, filter out star alleles.
