@@ -31,7 +31,7 @@ class CommandHandler:
                             if p.suffix == ".vcf":
                                 files.add(p)
             else:  # Glob folder for *.VCF
-                files |= set(path.glob("/*.vcf"))
+                files |= set(path.glob("*.vcf"))
         gnomad_path = Path(self.args.dest).joinpath(Path("gnomad_tb"))
         if gnomad_path.exists():
             if self.args.overwrite:

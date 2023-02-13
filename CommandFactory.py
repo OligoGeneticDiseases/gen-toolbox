@@ -65,7 +65,7 @@ class CommandFactory:
                             "--overwrite",
                             help="Overwrites any existing output MatrixTables, HailTables.",
                             action="store_true",
-                            required=True
+                            required=False
                             )
         loaddb.add_argument("-o",
                             "--out",
@@ -77,7 +77,7 @@ class CommandFactory:
                             "--number",
                             help="Number of tables to be collated.",
                             nargs="?",
-                            required=True,
+                            required=False,
                             type=int,
                             default=-1,
                             )
@@ -88,6 +88,6 @@ class CommandFactory:
                             )
         loaddb.add_argument("--phenotype",
                             help="Filter a subset of samples with given phenotype. Regex strings accepted e.g. r'NA\d+",
-                            required=True,
+                            required=False,
                             type=str
                             )
