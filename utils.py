@@ -327,7 +327,7 @@ def get_metadata(metadata_path):
             s = line.strip().split("\t")
             ecode = trim_prefix(s[0])
             if ecode not in metadata_dict:
-                if len(s) >= 2:
+                if len(s) >= 3:
                     metadata_dict[ecode] = [s[1], s[2]]
                 else:
                     metadata_dict[ecode] = ["NA", "NA"]
