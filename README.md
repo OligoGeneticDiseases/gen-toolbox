@@ -28,3 +28,8 @@ The project is directed by Tartu University Hospital Centre of Medical Genetics 
 2. CommandFactory.py this is a command creator class, you will find all respective command creation methods in this class
 3. CommandHaldler.py this is command handler, you will find all commands invoke methods in this class
 4. utils.py, utility file holds utility functions which gets called from commandHandler.py
+
+# to run Nextflow script open a terminal or command prompt and type
+```
+nextflow run annotation_module.nf
+```
