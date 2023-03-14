@@ -1,37 +1,56 @@
-// Define the input and output channels for your module
-input:
-  file source_dir
-  file dest_dir
-  string file_type
+// Define the 'findType' process that takes in a command and arguments
+process findType {
+    input:
+    val command
+    val args
+    // The script that will be executed for this process, using the input command and arguments
+    script:
+    """
+    python main.py ${command} ${args}
+    """
+}
 
-output:
-  file "output.txt"
+// Define the 'readVCFS' process that takes in a command and arguments
+process readVCFS {
+    input:
+    val command
+    val args
+    // The script that will be executed for this process, using the input command and arguments
+    script:
+    """
+    python main.py ${command} ${args}
+    """
+}
 
-// Define the command that will run your Python code
-command = """
-python main.py findtype -s ${source_dir} -d ${dest_dir} -t ${file_type}
-"""
+// Define the 'loadDB' process that takes in a command and arguments
+process loadDB {
+    input:
+    val command
+    val args
+    // The script that will be executed for this process, using the input command and arguments
+    script:
+    """
+    python main.py ${command} ${args}
+    """
+}
 
-// Invoke the command using the Nextflow process directive
-process runCommand {
-  input:
-    file source_dir
-    file dest_dir
-    string file_type
-
-  output:
-    file "output.txt"
-
-  script:
-    // Load the utility functions and command creator/handler classes
-    include {utils.py}
-    include {CommandFactory.py}
-    include {CommandHandler.py}
-
-    // Invoke the command using the command handler
-    command = CommandFactory.createFindTypeCommand(source_dir, dest_dir, file_type)
-    output = CommandHandler.invokeCommand(command)
-
-    // Write the output to a file
-    writeFile("output.txt", output)
+// Define the main workflow
+workflow {
+    // Check if the 'command' parameter was passed to the workflow
+    if (!params.command) {
+        println "Command not found"
+        exit 1
+    }
+    // If the command is 'findtype', execute the 'findType' process with the input command and arguments
+    if (params.command == "findtype") {
+        findType(command=params.command, args=params.args)
+    }
+    // If the command is 'readvcfs', execute the 'readVCFS' process with the input command and arguments
+    else if (params.command == "readvcfs") {
+        readVCFS(command=params.command, args=params.args)
+    }
+    // If the command is 'loaddb', execute the 'loadDB' process with the input command and arguments
+    else if (params.command == "loaddb") {
+        loadDB(command=params.command, args=params.args)
+    }
 }

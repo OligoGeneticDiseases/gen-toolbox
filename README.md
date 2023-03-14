@@ -26,8 +26,10 @@ The project is directed by Tartu University Hospital Centre of Medical Genetics 
 ## files information
 1. `main.py` is root file to execute with your command ex. `python3 main.py findtype -s {source dir} -d {destination dir} -t vcf`
 2. `CommandFactory.py` this is a command creator class, you will find all respective command creation methods in this class
-3. `CommandHaldler.py` this is command handler, you will find all commands invoke methods in this class
+3. `CommandHandler.py` this is command handler, you will find all commands invoke methods in this class
 4. `utils.py`, utility file holds utility functions which gets called from `CommandHandler.py`
 
 ### Run Nextflow script open a terminal or command prompt and type
-`nextflow run annotation_module.nf`
+If input and output are hardcoded in Nextflow pipeline: `nextflow run annotation_module.nf`
+
+Otherwise: `nextflow run annotation_module.nf --source_dir gen-toolbox/tests --input_file in_silico_sorted.vcf --dest_dir gen-toolbox/tests --output_file in_silico_sorted_results.txt`
