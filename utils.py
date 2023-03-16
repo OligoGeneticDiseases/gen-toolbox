@@ -41,6 +41,7 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
 
 
 def write_filelist(input_dir, file_name, file_paths, include_duplicates=False, verbose=1, regex=None):
+    os.makedirs(input_dir, exist_ok=True)  # Ensure the input directory exists before writing to it
     '''
     This function writes lists of files that have been inputted as arrays.
     :param input_dir: Directory to be written to.

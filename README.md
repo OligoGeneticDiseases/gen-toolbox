@@ -30,6 +30,5 @@ The project is directed by Tartu University Hospital Centre of Medical Genetics 
 4. `utils.py`, utility file holds utility functions which gets called from `CommandHandler.py`
 
 ### Run Nextflow script open a terminal or command prompt and type
-If input and output are hardcoded in Nextflow pipeline: `nextflow run annotation_module.nf`
 
-Otherwise: `nextflow run annotation_module.nf --source_dir gen-toolbox/tests --input_file in_silico_sorted.vcf --dest_dir gen-toolbox/tests --output_file in_silico_sorted_results.txt`
+Run it as: ` nextflow run annotation_module3.nf --vcf_file tests/in_silico_sorted.vcf --destination output`

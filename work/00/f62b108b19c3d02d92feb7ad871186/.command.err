@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/markus/gen-toolbox/main.py", line 28, in <module>
+    ch.handle_find_type_command()
+  File "/Users/markus/gen-toolbox/CommandHandler.py", line 22, in handle_find_type_command
+    write_filelist(self.args.directory,
+  File "/Users/markus/gen-toolbox/utils.py", line 61, in write_filelist
+    with open(os.path.join(input_dir, file_name), "w") as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'output/in_silico_sorted.vcf.vcf.txt'

@@ -13,8 +13,15 @@ class CommandHandler:
         self.args = args
 
     def handle_find_type_command(self):
-        files = find_filetype(self.args.source, self.args.type, verbose=False)
-        write_filelist(self.args.directory, "{0}.{1}.txt".format(os.path.basename(os.path.normpath(self.args.source)), self.args.type), files, regex=self.args.regex)
+        # Check if the provided source is a file with the specified type
+        if os.path.isfile(self.args.source) and self.args.source.endswith(self.args.type):
+            files = [self.args.source]
+        else:
+            files = []
+
+        file_name = "{0}.{1}.txt".format(os.path.splitext(os.path.basename(os.path.normpath(self.args.source)))[0],
+                                         self.args.type)
+        write_filelist(self.args.directory, file_name, files, regex=self.args.regex)
 
     def handle_read_vcfs_command(self):
         full_paths = [Path(path) for path in self.args.file]
