@@ -59,6 +59,7 @@ def write_filelist(input_dir, file_name, file_paths, include_duplicates=False, v
         regex_rules = None
         if regex is not None:
             regex_rules = re.compile(regex, flags=re.I)
+
         with open(os.path.join(input_dir, file_name), "w") as f:
             all_paths = list()
             unique_prefixes = list()

@@ -1,3 +1,5 @@
+print("Starting updated main.py")
+
 from pathlib import Path
 import argparse
 import hail as hl
@@ -7,6 +9,7 @@ from CommandFactory import CommandFactory
 from CommandHandler import CommandHandler
 
 hail_home = Path(hl.__file__).parent.__str__()
+
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser(description=f"Gnomad frequency table burden analysis pipeline command-line "
@@ -25,6 +28,10 @@ if __name__ == '__main__':
             ch = CommandHandler(args=args)
 
             if str.lower(ch.args.command) == "findtype":  # Handle findtype command
+                # Add print statements here
+                print("Input source:", ch.args.source)
+                print("Input type:", ch.args.type)
+
                 ch.handle_find_type_command()
             else:
                 conf = SparkConf()

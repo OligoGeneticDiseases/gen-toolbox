@@ -13,13 +13,16 @@ class CommandHandler:
         self.args = args
 
     def handle_find_type_command(self):
+        print("Input source:", self.args.source)  # Add this line
+        print("Input type:", self.args.type)  # Add this line
+
         # Check if the provided source is a file with the specified type
         if os.path.isfile(self.args.source) and self.args.source.endswith(self.args.type):
             files = [self.args.source]
         else:
             files = []
 
-        print("Files found:", files)  # Add this line to print the files found
+        print("Files:", files)
 
         file_name = "{0}.{1}.txt".format(os.path.splitext(os.path.basename(os.path.normpath(self.args.source)))[0],
                                          self.args.type)
