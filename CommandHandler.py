@@ -19,6 +19,8 @@ class CommandHandler:
         else:
             files = []
 
+        print("Files found:", files)  # Add this line to print the files found
+
         file_name = "{0}.{1}.txt".format(os.path.splitext(os.path.basename(os.path.normpath(self.args.source)))[0],
                                          self.args.type)
         write_filelist(self.args.directory, file_name, files, regex=self.args.regex)
