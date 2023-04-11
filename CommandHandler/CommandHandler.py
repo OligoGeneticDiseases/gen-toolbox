@@ -3,7 +3,7 @@ from pathlib import Path
 import datetime
 from utils import find_filetype, write_filelist, get_metadata, load_hailtables
 
-from utils import write_gnomad_table
+from utils import write_gnomad_table, append_table
 
 unique = hash(datetime.datetime.utcnow())
 
@@ -28,7 +28,7 @@ class CommandHandler:
                                          self.args.type)
         write_filelist(self.args.directory, file_name, files, regex=self.args.regex)
 
-    def handle_read_vcfs_command(self):
+    def handle_read_vcfs_command(self, skip_unioned=False):
         full_paths = [Path(path) for path in self.args.file]
         files = set()
         for path in full_paths:
@@ -52,10 +52,21 @@ class CommandHandler:
                 FileExistsError("The combined gnomad_tb exists and --overwrite is not active! "
                                 "Rename or move the folder {0}".format(gnomad_path.__str__()))
         else:
-            gnomad_tb = write_gnomad_table(files, self.args.dest, overwrite=self.args.overwrite,
+            if skip_unioned:
+                write_gnomad_table(files, self.args.dest, overwrite=self.args.overwrite,
+                                           metadata=self.args.globals, make_unioned_table=False)
+            else:
+                write_gnomad_table(files, self.args.dest, overwrite=self.args.overwrite,
+                                           metadata=self.args.globals, make_unioned_table=True)
+                gnomad_tb = write_gnomad_table(files, self.args.dest, overwrite=self.args.overwrite,
                                            metadata=self.args.globals)
-        # gnomad_tb.describe()
-        gnomad_tb.flatten().export(Path(self.args.dest).parent.joinpath("gnomad.tsv").__str__())
+
+                gnomad_tb.flatten().export(Path(self.args.dest).parent.joinpath("gnomad.tsv").__str__())
+
+    # Only annotate
+    def handle_annotate_vcfs_command(self):
+        self.handle_read_vcfs_command(skip_unioned=True)
+
 
     def handle_load_db_command(self):
         metadata_dict = None

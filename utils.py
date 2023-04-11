@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 unique = hash(datetime.datetime.utcnow())
-
+script_path =  Path(__file__, '..').resolve()
 
 def find_filetype(dir, filetype, findunique=False, verbose=True):
     """
@@ -145,7 +145,7 @@ def eval_regex(text, regex):
     return result
 
 
-def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
+def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None, make_unioned_table=True):
     gnomad_tb = None
     hailtables = dict()
     metadata_dict = get_metadata(metadata)
@@ -165,20 +165,21 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
             FileExistsError("The output HailTable exists and --overwrite is not active in destination {0}"
                             .format(destination.__str__()))
 
-    # Turn MatrixTables into HailTables, keyed by gene, join
-    unioned_table = table_join(mts_to_table(list(hailtables.values())))
+    if make_unioned_table:
+        # Turn MatrixTables into HailTables, keyed by gene, join
+        unioned_table = table_join(mts_to_table(list(hailtables.values())))
 
-    gnomad_tb = gnomad_table(unioned_table)
-    gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
-    if gnomadpath.exists():
-        if not overwrite:
-            raise FileExistsError(gnomadpath)
+        gnomad_tb = gnomad_table(unioned_table)
+        gnomadpath = Path(dest).joinpath(Path("gnomad_tb"))
+        if gnomadpath.exists():
+            if not overwrite:
+                raise FileExistsError(gnomadpath)
+            else:
+                sys.stderr.write("WARNING: Overwrite is active. Deleting pre-existing directory {0}\n".format(gnomadpath))
+                shutil.rmtree(gnomadpath)
         else:
-            sys.stderr.write("WARNING: Overwrite is active. Deleting pre-existing directory {0}\n".format(gnomadpath))
-            shutil.rmtree(gnomadpath)
-    else:
-        gnomad_tb.write(gnomadpath.__str__())
-        pass
+            gnomad_tb.write(gnomadpath.__str__())
+            pass
     return gnomad_tb
 
 
@@ -241,7 +242,8 @@ def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
 
     # recode = {f"chr{i}":f"{i}" for i in (list(range(1, 23)) + ['X', 'Y'])}
     # Can import only samples of the same key (matrixtable join), if input is list of vcfs
-
+    config_path = script_path.joinpath("vep_settings.json").__str__()
+    sys.stderr.write(config_path)	
     contig_prefix = "chr"
     contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
     contig_recoding.update({"chrX": "X", "chrY": "Y"})
@@ -249,7 +251,7 @@ def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
 
     if annotate:
         table = table.filter_rows(table.alleles[1] != '*')  # These alleles break VEP, filter out star alleles.
-        table = hl.methods.vep(table, config="vep_settings.json", csq=True)
+        table = hl.methods.vep(table, config=script_path.joinpath("vep_settings.json").__str__(), csq=True)
     if write:
         if not os.path.exists(destination):
             table.write(destination)

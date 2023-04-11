@@ -52,6 +52,35 @@ class CommandFactory:
             type=str
         )
 
+    def create_annotate_vcfs_command(self):
+        annotate_vcfs = self.subparsers.add_parser("annotatevcfs", help="Annotate a batch of VCFs.")
+        annotate_vcfs.add_argument(
+            "--file",
+            help="The directory (or file) containing VCF files.",
+            required=True,
+            nargs="?")
+        annotate_vcfs.add_argument(
+            "-g",
+            "--globals",
+            help="Tab delimited input file containing globals string  for a given unique sample (e.g. "
+                 "Identifier\\t.Phenotype\\tMutations",
+            required=True,
+            type=str
+        )
+        annotate_vcfs.add_argument(
+            "-r",
+            "--overwrite",
+            help="Overwrites any existing output MatrixTables, HailTables.",
+            action="store_true"
+        )
+        annotate_vcfs.add_argument(
+            "--dest",
+            help="Destination folder to write the Hail MatrixTable files.",
+            nargs='?',
+            const=os.path.abspath("."),
+            required=True
+        )
+
     def create_load_db_command(self):
         loaddb = self.subparsers.add_parser("loaddb", help="Load a folder containing HailTables.")
         loaddb.add_argument("-d",

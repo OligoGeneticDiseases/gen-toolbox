@@ -1,26 +1,32 @@
-params.vcf_files = ""
+nextflow.enable.dsl=2
+
+params.vcf_files = "*"
 params.destination = "output"
 params.globals = ""
+params.python_script_path = "$PWD/main.py"
 
-if (!params.vcf_files || !params.destination || !params.globals) {
-    exit 1, "Error: VCF files, destination directory, and globals file must be provided. Use --vcf_files {path to VCF files} --destination {destination dir} --globals {path to globals file}"
-}
+vcfsCh = Channel.fromPath("$params.vcf_files/*", checkIfExists: true )
+                      | map { file -> return tuple(file.baseName, file) }
+
+//vcfsCh = Channel.fromPath(params.vcf_files, checkIfExists: true ).splitText(){ it -> [basename(it), it] }
 
 process readVCFs {
+    conda "$PWD/environment.yml"
+    publishDir("$params.destination/$name", mode: 'copy')
+    tag { batch }
     input:
-    val vcf_files from params.vcf_files
-    val destination from params.destination
-    val globals from params.globals
-
-    output:
-    path("${destination}") into result
+	tuple val(name), path(vcf_path)
+	
+	output:
+    path("*")
 
     script:
     """
-    python3 /Users/markus/gen-toolbox/main.py readvcfs -f ${vcf_files} -d ${destination} -g ${globals}
+	python ${params.python_script_path} annotatevcfs --file $vcf_path --dest ${params.destination} -g ${params.globals}
     """
 }
 
-result.view { outputDir ->
-    println "Pipeline completed successfully. Output saved to ${outputDir}"
+workflow {
+    vcfsCh | view()
+    readVCFs(vcfsCh)
 }

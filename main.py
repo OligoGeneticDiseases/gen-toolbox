@@ -5,8 +5,8 @@ import argparse
 import hail as hl
 from pyspark import SparkConf, SparkContext
 
-from CommandFactory import CommandFactory
-from CommandHandler import CommandHandler
+from CommandFactory.CommandFactory import CommandFactory
+from CommandHandler.CommandHandler import CommandHandler
 
 hail_home = Path(hl.__file__).parent.__str__()
 
@@ -18,6 +18,7 @@ if __name__ == '__main__':
         cf = CommandFactory(parser=parser)
         cf.create_find_type_command()
         cf.create_read_vcfs_command()
+        cf.create_annotate_vcfs_command()
         cf.create_load_db_command()
         args = cf.parser.parse_args()
 
@@ -40,7 +41,7 @@ if __name__ == '__main__':
                 conf.set('spark.submit.deployMode', u'client')
                 conf.set('spark.app.name', u'HailTools-TSHC')
                 conf.set('spark.executor.memory', "4g")
-                conf.set('spark.driver.memory', "56g")
+                conf.set('spark.driver.memory', "6g")
                 conf.set("spark.jars", "{0}/backend/hail-all-spark.jar".format(hail_home))
                 conf.set("spark.executor.extraClassPath", "./hail-all-spark.jar")
                 conf.set("spark.driver.extraClassPath", "{0}/backend/hail-all-spark.jar".format(hail_home))
@@ -52,6 +53,10 @@ if __name__ == '__main__':
                     sc = SparkContext(conf=conf)
                     hl.init(backend="spark", sc=sc, min_block_size=128)
                     ch.handle_read_vcfs_command()
+                elif str.lower(args.command) == "annotatevcfs":  # Handle readvcfs command
+                    sc = SparkContext(conf=conf)
+                    hl.init(backend="spark", sc=sc, min_block_size=128)
+                    ch.handle_annotate_vcfs_command()
                 elif str.lower(args.command) == "loaddb":  # Handle readvcfs command
                     conf.set("spark.local.dir", "{0}".format(args.out))
                     sc = SparkContext(conf=conf)
