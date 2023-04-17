@@ -8,7 +8,7 @@ def import_and_annotate_vcf(vcf_path):
     :return: Annotated MatrixTable.
     """
     mt = hl.import_vcf(vcf_path)
-    annotated_mt = hl.vep(mt, '<path/to/your/vep/config>')
+    annotated_mt = hl.vep(mt, './vep_settings.json')
     return annotated_mt
 
 def merge_matrix_tables(matrix_tables):
