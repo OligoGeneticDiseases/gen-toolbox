@@ -23,11 +23,14 @@ The project is directed by Tartu University Hospital Centre of Medical Genetics 
 7. Install requirements by command `pip install -r requirements.txt`
 8. Run: `python3 main.py --help`
 
-## files information
-1. `main.py` is root file to execute with your command ex. `python3 main.py findtype -s {source dir} -d {destination dir} -t vcf`
-2. `CommandFactory.py` this is a command creator class, you will find all respective command creation methods in this class
-3. `CommandHandler.py` this is command handler, you will find all commands invoke methods in this class
-4. `utils.py`, utility file holds utility functions which gets called from `CommandHandler.py`
+## Files Information
+1. `main.py` is the root file to execute with your command, e.g., `python3 main.py findtype -s {source dir} -d {destination dir} -t vcf`.
+2. `src/CommandFactory.py`: This is a command creator class; you will find all respective command creation methods in this class.
+3. `src/CommandHandler.py`: This is the command handler; you will find all command invocation methods in this class.
+4. `src/utils.py`: Utility file holds utility functions which get called from `CommandHandler.py`.
+5. `src/hail_methods.py`: This module contains methods for working with Hail, such as importing and annotating VCF files, merging MatrixTables, and more.
+6. `src/file_utility.py`: This module provides file-related utility functions, such as writing file lists.
+7. `src/stats.py`: This external file contains statistical analysis methods used in the project.
 
 ### Run Nextflow script open a terminal or command prompt and type
 

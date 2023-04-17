@@ -34,7 +34,7 @@ class CommandFactory:
             "--dest",
             help="Destination folder to write the Hail MatrixTable files.",
             nargs='?',
-            const=os.path.abspath("."),
+            const=os.path.abspath(".."),
             required=True
         )
         read_vcfs.add_argument(
@@ -58,7 +58,7 @@ class CommandFactory:
                             "--directory",
                             help="Folder to load the Hail MatrixTable files from.",
                             nargs='?',
-                            const=os.path.abspath("."),
+                            const=os.path.abspath(".."),
                             required=True
                             )
         loaddb.add_argument("-r",

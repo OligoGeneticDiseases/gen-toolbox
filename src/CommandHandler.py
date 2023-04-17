@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 import datetime
-from hail_methods import import_and_annotate_vcf, merge_matrix_tables, reduce_to_2d_table, create_frequency_bins
-from utils import find_filetype
-from file_utility import write_filelist
+from .hail_methods import import_and_annotate_vcf, merge_matrix_tables, reduce_to_2d_table, create_frequency_bins
+from .utils import find_filetype
+from .file_utility import write_filelist
 
 unique = hash(datetime.datetime.utcnow())
 
