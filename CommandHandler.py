@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
-import datetime
-from utils import find_filetype, write_filelist, get_metadata, load_hailtables
-
-from utils import write_gnomad_table
+import hail as hl
+from hail_methods import import_and_annotate_vcf, merge_matrix_tables, reduce_to_2d_table, create_frequency_bins
 
 unique = hash(datetime.datetime.utcnow())
 
@@ -18,32 +16,29 @@ class CommandHandler:
 
     def handle_read_vcfs_command(self):
         full_paths = [Path(path) for path in self.args.file]
-        files = set()
+        vcfs = []
+
         for path in full_paths:
-            if path.is_file():
-                if path.suffix == ".vcf":  # VCF files are parsed.
-                    files.add(path)
-                else:  # might be a list of VCFs
-                    with open(path, "r") as filelist:
-                        for line in filelist:
-                            # coerce lines into path
-                            p = Path(line.strip())
-                            if p.suffix == ".vcf":
-                                files.add(p)
-            else:  # Glob folder for *.VCF
-                files |= set(path.glob("*.vcf"))
-        gnomad_path = Path(self.args.dest).joinpath(Path("gnomad_tb"))
-        if gnomad_path.exists():
-            if self.args.overwrite:
-                metadata = self.args.globals
+            if path.is_file() and path.suffix == ".vcf":
+                vcfs.append(path)
             else:
-                FileExistsError("The combined gnomad_tb exists and --overwrite is not active! "
-                                "Rename or move the folder {0}".format(gnomad_path.__str__()))
-        else:
-            gnomad_tb = write_gnomad_table(files, self.args.dest, overwrite=self.args.overwrite,
-                                           metadata=self.args.globals)
-        # gnomad_tb.describe()
-        gnomad_tb.flatten().export(Path(self.args.dest).parent.joinpath("gnomad.tsv").__str__())
+                vcfs.extend(path.glob("*.vcf"))
+
+        matrix_tables = []
+        for vcf_path in vcfs:
+            annotated_vcf = import_and_annotate_vcf(vcf_path)  # hail.import_vcf() and hail.VEP() within this function
+            matrix_tables.append(annotated_vcf)
+
+        combined_mt = merge_matrix_tables(matrix_tables)  # Merge all matrix tables into one
+
+        reduced_mt = reduce_to_2d_table(
+            combined_mt)  # Reduce the matrix table to a 2D matrix table with gene and frequency as keys
+
+        final_frequency_table = create_frequency_bins(reduced_mt,
+                                                      num_bins=16)  # Create a final output frequency table with 16 bins
+
+        # Export the final frequency table to a TSV file
+        final_frequency_table.flatten().export(os.path.join(self.args.dest, "final_frequency_table.tsv"))
 
     def handle_load_db_command(self):
         metadata_dict = None

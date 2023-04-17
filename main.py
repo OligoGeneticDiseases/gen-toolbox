@@ -2,6 +2,8 @@ from pathlib import Path
 import argparse
 import hail as hl
 from pyspark import SparkConf, SparkContext
+from hail_methods import import_and_annotate_vcf, merge_matrix_tables, reduce_to_2d_table, create_frequency_bins
+
 
 from CommandFactory import CommandFactory
 from CommandHandler import CommandHandler
