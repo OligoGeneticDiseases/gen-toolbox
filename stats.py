@@ -28,7 +28,8 @@ def load_genes_from_json(file_path):
         data = json.load(file)
     return data["intersect_genes"], data["rv_genes"], data["neg_control_genes"]
 
-def permutation_analysis(df_case, df_control, combination_length=5, iterations=20000):
+
+def permutation_analysis(df_case, df_control, intersect_genes, rv_genes, neg_control_genes, combination_length=5, iterations=20000):
     """
     This permutation analysis is based on Monte Carlo analysis of permutations.
     Sets of N=5 random genes are selected from input variant frequency tables and variant enrichment is compared
@@ -44,42 +45,49 @@ def permutation_analysis(df_case, df_control, combination_length=5, iterations=2
     all_genes = df_case.gene
     case_genes_length = combination_length  # e.g. sets of 5 genes
 
-    df_case = df_case.dropna(
-        subset=["gene"])  # drop gene '' and trailing other empty genes (all rows must have gene names)
+    # Filter out empty genes and keep only the intersecting genes in both dataframes
+    df_case = df_case.dropna(subset=["gene"])
     df_case = df_case[df_case.gene.isin(intersect_genes)]
-    df_control = df_control.dropna(
-        subset=["gene"])  # drop gene '' and trailing other empty genes (all rows must have gene names)
+    df_control = df_control.dropna(subset=["gene"])
     df_control = df_control[df_control.gene.isin(intersect_genes)]
+
     # df_case_std = df_case.std()
     # df_control_std = df_control.std()
     # df_fraction = df_case.iloc[:, 1:] / 1389 / df_control.iloc[:, 1:] / 826
+
+    # Calculate the mean of the case and control dataframes
     df_case_mean = df_case.mean()
     df_control_mean = df_control.mean()
-    for i in range(1,
-                   len(df_case.columns)):  # Go through each frequency column, with 0 being the gene.col and simulate j times.
-        j = 0
+
+    fraction_results_2 = pd.DataFrame()
+    num_columns = df_case.shape[1]
+
+    #-------------------------------
+    # Loop through each frequency column
+    for i in range(1, num_columns):
         frequency_column = df_case.columns[i]
-        vals2 = []
-        while j < iterations:
-            # indices = np.random.choice(df_fraction.shape[0], case_genes_length, replace=False)
-            # sampled_rows = df_case.iloc[indices]
-            # total_variants_case = df_case.iloc[indices, i]
-            # total_variants_control = df_control.iloc[indices, i]  # get the same rows (variant counts for specific gene) from controls
-            sampled_rows = df_case.sample(case_genes_length, axis=0)
-            total_variants_case = sampled_rows.iloc[:case_genes_length][frequency_column].sort_index()
-            total_variants_control = df_control.loc[sampled_rows.index][frequency_column].sort_index()
-            if total_variants_case.sum() != 0 and total_variants_control.sum() != 0:
-                # Difference of means
-                # Single sample average normalized, averages the variant enrichment level across all samples
-                # Depicts the size of the input dataframe (number of cases summed together)
-                # Currently a hardcoded value depending on the samples in the case group (1389) vs control group (826)
-                vals2.append(
-                    np.divide(np.divide(total_variants_case.sum(), 1389), np.divide(total_variants_control.sum(), 826)))
-            else:
-                vals2.append(np.NaN)
-            j += 1
-        fraction_results_2[frequency_column] = vals2
+
+        # Vectorized sampling: randomly select indices for all iterations at once
+        indices = np.random.choice(df_case.shape[0], (iterations, case_genes_length), replace=False)
+
+        # Calculate the sum of total variants for the case and control groups using the sampled indices
+        total_variants_case = df_case.iloc[indices, i].sum(axis=1)
+        total_variants_control = df_control.iloc[indices, i].sum(axis=1)
+
+        # Vectorized ratio calculation: calculate the ratio for all iterations at once
+        ratio = (total_variants_case / 1389) / (total_variants_control / 826)
+
+        # Set NaN values for iterations where the sum of total variants is zero for either case or control groups
+        ratio[np.logical_or(total_variants_case == 0, total_variants_control == 0)] = np.NaN
+
+        # Store the calculated ratios in the fraction_results_2 dataframe
+        fraction_results_2[frequency_column] = ratio
+
+    # Print the fraction results
     print(fraction_results_2)
+
+#-------------plotting----------------------
+
     # fraction_results["low.gnomad_5_100"] = np.log2(fraction_results["low.gnomad_5_100"].astype(dtype=float))
     # plt.hist(fraction_results["low.gnomad_5_100"], density=True, log=True, histtype="stepfilled", bins=100)
     # plt.hlines(data=fraction_results["low.gnomad_5_100_log"])
