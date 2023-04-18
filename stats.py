@@ -1,102 +1,32 @@
 import argparse
-import sys
-from pathlib import Path
-import uuid
 import datetime
+import json
+import sys
+import uuid
+from pathlib import Path
 
 import matplotlib.pyplot as plt
-
 import numpy as np
 import pandas as pd
 import scipy.stats as sp
 
-intersect_genes = ["AIP",
-                   "APC",
-                   "ATM",
-                   "BAP1",
-                   "BLM",
-                   "BMPR1A",
-                   "BRCA1",
-                   "BRCA2",
-                   "BRIP1",
-                   "CDC73",
-                   "CDH1",
-                   "CDK4",
-                   "CDKN2A",
-                   "CEBPA",
-                   "CHEK2",
-                   "DDB2",
-                   "DICER1",
-                   "DIS3L2",
-                   "EPCAM",
-                   "ERCC2",
-                   "ERCC3",
-                   "ERCC4",
-                   "ERCC5",
-                   "FANCA",
-                   "FANCB",
-                   "FANCC",
-                   "FANCD2",
-                   "FANCE",
-                   "FANCF",
-                   "FANCG",
-                   "FANCI",
-                   "FANCL",
-                   "FANCM",
-                   "FH",
-                   "FLCN",
-                   "GATA2",
-                   "GPC3",
-                   "KIT",
-                   "MAX",
-                   "MEN1",
-                   "MET",
-                   "MLH1",
-                   "MSH2",
-                   "MSH6",
-                   "MUTYH",
-                   "NBN",
-                   "NF1",
-                   "NF2",
-                   "NSD1",
-                   "PALB2",
-                   "PHOX2B",
-                   "PMS2",
-                   "PRKAR1A",
-                   "PTCH1",
-                   "PTEN",
-                   "RAD51C",
-                   "RAD51D",
-                   "RB1",
-                   "RECQL4",
-                   "RET",
-                   "RHBDF2",
-                   "RUNX1",
-                   "SDHAF2",
-                   "SDHB",
-                   "SDHC",
-                   "SDHD",
-                   "SLX4",
-                   "SMAD4",
-                   "SMARCB1",
-                   "STK11",
-                   "SUFU",
-                   "TMEM127",
-                   "TP53",
-                   "TSC1",
-                   "TSC2",
-                   "VHL",
-                   "WT1",
-                   "XPA",
-                   "XPC",
-                   ]
-# rv_genes = ["BRCA1", "BRCA2", "CDH1", "PALB2", "TP53"]
-rv_genes = ["BRCA1", "BRCA2", "CHEK2", "PALB2", "ATM"]
-# neg_control_genes = ["BLM", "CEBPA", "FANCA", "FANCB", "GATA2"]
-neg_control_genes = ["APC", "BMPR1A", "MSH2", "MSH6", "PTEN"]
+def load_gene_config(json_file):
+    """Load gene configuration from a JSON file."""
+    with open(json_file, "r") as file:
+        config = json.load(file)
+    return config
 
-fraction_results_2 = pd.DataFrame()
+def load_genes_from_file(file_path):
+    """Load genes from a file."""
+    with open(file_path, "r") as file:
+        genes = [line.strip() for line in file.readlines()]
+    return genes
 
+def load_genes_from_json(file_path):
+    """Load genes from a JSON file."""
+    with open(file_path, "r") as file:
+        data = json.load(file)
+    return data["intersect_genes"], data["rv_genes"], data["neg_control_genes"]
 
 def permutation_analysis(df_case, df_control, combination_length=5, iterations=20000):
     """
@@ -105,6 +35,7 @@ def permutation_analysis(df_case, df_control, combination_length=5, iterations=2
     between cases (breast cancer diagnosis) and controls (healthy/family cancer risk).
     Curated gene-sets are placed on the simulation graph. Curated gene sets are selected by current knowledge of gene
     function, ie breast cancer genes are compared against colon cancer genes.
+
     :param combination_length:
     :param df_case: A numpy table of variants summed in a certain frequency-and-impact bin for each gene, cases.
     :param df_control: A numpy table of variants summed in a certain frequency-and-impact bin for each gene, controls.
@@ -211,7 +142,6 @@ def validate_file(arg):
     else:
         raise FileNotFoundError(arg)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Statistical analysis command-line tool for gene "
                                           "list and variant burden analysis.")
@@ -219,21 +149,38 @@ if __name__ == "__main__":
     analyse = subparsers.add_parser("Analyse", help="Find the Monte Carlo permutation values for a given input.")
     analyse.add_argument("--input1", "-i", type=validate_file, help="Input file path", required=True)
     analyse.add_argument("--input2", "-i2", type=validate_file, help="Input file path", required=True)
+    analyse.add_argument("--gene_config", "-g", type=validate_file, help="Gene configuration JSON file path",
+                         required=True)
     analyse.add_argument("--out", "-", type=validate_file, help="Output file path", required=False)
     analyse.add_argument("--iterations", "-n", type=int, help="Total permutation iterations to be ran. ")
-    start = datetime.datetime.now()
-    args = parser.parse_args()
-    # gene_list = []
-    normal_df = pd.read_csv(args.input1, sep="\t", header=0)
-    rv_df = pd.read_csv(args.input2, sep="\t", header=0)
-    outlines = []
-    if args.out is None and len(outlines) > 0:
-        filename = str(uuid.uuid4())
-        with open(filename, "w+") as out:
-            out.write(outlines)
-        sys.stderr.write("Created output file {0}.".format(filename))
 
-    permutation_analysis(rv_df, normal_df)
-    end = datetime.datetime.now()
-    print("Time: {0}".format(end - start))
-    exit()
+    parser.add_argument("--gene-config", dest="gene_config", help="Path to the gene configuration JSON file",
+                        required=True)
+
+    args = parser.parse_args()
+
+    if args.command == "Analyse":
+        start = datetime.datetime.now()
+
+        config = load_gene_config(args.gene_config)
+        intersect_genes = config["intersect_genes"]
+        rv_genes = config["rv_genes"]
+        neg_control_genes = config["neg_control_genes"]
+
+        normal_df = pd.read_csv(args.input1, sep="\t", header=0)
+        rv_df = pd.read_csv(args.input2, sep="\t", header=0)
+
+        outlines = []
+
+        permutation_analysis(rv_df, normal_df, intersect_genes, rv_genes, neg_control_genes)
+
+        if args.out is None and len(outlines) > 0:
+            filename = str(uuid.uuid4())
+            with open(filename, "w+") as out:
+                out.write(outlines)
+            sys.stderr.write("Created output file {0}.".format(filename))
+
+        end = datetime.datetime.now()
+        print("Time: {0}".format(end - start))
+
+        exit()
