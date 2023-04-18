@@ -3,6 +3,7 @@ import datetime
 import json
 import sys
 import uuid
+import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -28,6 +29,10 @@ def load_genes_from_json(file_path):
         data = json.load(file)
     return data["intersect_genes"], data["rv_genes"], data["neg_control_genes"]
 
+def extract_number_from_filename(filename: str) -> int:
+    """Extract the number from the given filename."""
+    match = re.search(r'\d+', filename)
+    return int(match.group()) if match else None
 
 def permutation_analysis(df_case, df_control, intersect_genes, rv_genes, neg_control_genes, combination_length=5, iterations=20000):
     """
@@ -53,7 +58,7 @@ def permutation_analysis(df_case, df_control, intersect_genes, rv_genes, neg_con
 
     # df_case_std = df_case.std()
     # df_control_std = df_control.std()
-    # df_fraction = df_case.iloc[:, 1:] / 1389 / df_control.iloc[:, 1:] / 826
+    # df_fraction = df_case.iloc[:, 1:] / case_count / df_control.iloc[:, 1:] / control_count
 
     # Calculate the mean of the case and control dataframes
     df_case_mean = df_case.mean()
@@ -75,7 +80,7 @@ def permutation_analysis(df_case, df_control, intersect_genes, rv_genes, neg_con
         total_variants_control = df_control.iloc[indices, i].sum(axis=1)
 
         # Vectorized ratio calculation: calculate the ratio for all iterations at once
-        ratio = (total_variants_case / 1389) / (total_variants_control / 826)
+        ratio = (total_variants_case / case_count) / (total_variants_control / control_count )
 
         # Set NaN values for iterations where the sum of total variants is zero for either case or control groups
         ratio[np.logical_or(total_variants_case == 0, total_variants_control == 0)] = np.NaN
@@ -97,10 +102,10 @@ def permutation_analysis(df_case, df_control, intersect_genes, rv_genes, neg_con
     for frequency_column in fraction_results_2.columns:
 
         # Average sample normalization enrichment ratios for "likely impactful" and "likely non-impactful" genes
-        q_avg = np.divide(np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]) / 1389,
-                          np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]) / 826)
-        q_avg_control_group = np.divide(np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]) / 1389,
-                                        np.sum(df_control[df_control.gene.isin(neg_control_genes)][frequency_column]) / 826)
+        q_avg = np.divide(np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]) / case_count,
+                          np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]) / control_count )
+        q_avg_control_group = np.divide(np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]) / case_count,
+                                        np.sum(df_control[df_control.gene.isin(neg_control_genes)][frequency_column]) / control_count )
         print("Impact group (av-norm. ): {0}, case_genes_enrichment: {1}, control_genes_enrichment: {2}".format(
             frequency_column,
             q_avg, q_avg_control_group))
@@ -179,6 +184,9 @@ if __name__ == "__main__":
         rv_df = pd.read_csv(args.input2, sep="\t", header=0)
 
         outlines = []
+
+        case_count = extract_number_from_filename(args.input1.name)
+        control_count = extract_number_from_filename(args.input2.name)
 
         permutation_analysis(rv_df, normal_df, intersect_genes, rv_genes, neg_control_genes)
 
