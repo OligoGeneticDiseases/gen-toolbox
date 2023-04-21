@@ -9,9 +9,16 @@ def import_and_annotate_vcf(vcf_path, annotate=True):
     (if already annotated with VEP)
     :return: Annotated MatrixTable.
     """
-    mt = hl.import_vcf(vcf_path.__str__())
+    contig_prefix = "chr"
+    contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
+    contig_recoding.update({"chrX": "X", "chrY": "Y"})
+    mt = hl.import_vcf(vcf_path.__str__(), reference_genome='GRCh37', contig_recoding=contig_recoding)
     if annotate:
         mt = hl.vep(mt, './vep_settings.json')
+        mt = mt.annotate_rows(impact=mt.vep.IMPACT,
+                              gene=mt.vep.SYMBOL,
+                              HGNC_ID=mt.vep.HGNC_ID,
+                              MAX_AF=mt.vep.MAX_AF)
     return mt
 
 def merge_matrix_tables(matrix_tables):
@@ -34,7 +41,6 @@ def reduce_to_2d_table(mt):
     :return: Reduced MatrixTable.
     """
     mt = mt.key_rows_by('locus', 'alleles')
-    mt = mt.annotate_rows(gene=hl.sorted(mt.vep.transcript_consequences, key=lambda x: x.canonical).gene_symbol)
     mt = mt.group_rows_by(mt.gene).aggregate_rows(n_het=hl.agg.sum(mt.GT.is_het()), n_hom_var=hl.agg.sum(mt.GT.is_hom_var()))
     return mt
 
