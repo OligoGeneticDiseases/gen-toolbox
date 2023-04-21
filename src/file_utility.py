@@ -14,26 +14,6 @@ duplicates = 0
 reflines = None
 
 
-class Interval():
-    def __init__(self, chrom, start, stop, symbol):
-        self.chrom = chrom
-        self.start = start
-        self.stop = stop
-        self.symbol = symbol
-
-    def between(self, range):
-        if self.chrom == range[0]:
-            if self.start <= range[1] and self.stop >= range[2]:
-                return True
-        return False
-
-    def __str__(self):
-        return "\t".join((self.chrom, str(self.start), str(self.stop), str(self.symbol)))
-
-    def compare(self, other):
-        return self.symbol == other.symbol and self.chrom == other.chrom
-
-
 def eval_regex(text, regex):
     """
     Will return the parsed string with the defined regex rule
