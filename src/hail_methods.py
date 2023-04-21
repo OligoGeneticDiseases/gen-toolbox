@@ -1,15 +1,18 @@
 import hail as hl
 
-def import_and_annotate_vcf(vcf_path):
+def import_and_annotate_vcf(vcf_path, annotate=True):
     """
     Import a VCF file and annotate it using hail.import_vcf() and hail.VEP().
 
     :param vcf_path: The path to the VCF file.
+    :param annotate: Annotates the input VCF file using VEP (default=True). Set to false to skip annotation
+    (if already annotated with VEP)
     :return: Annotated MatrixTable.
     """
-    mt = hl.import_vcf(vcf_path)
-    annotated_mt = hl.vep(mt, './vep_settings.json')
-    return annotated_mt
+    mt = hl.import_vcf(vcf_path.__str__())
+    if annotate:
+        mt = hl.vep(mt, './vep_settings.json')
+    return mt
 
 def merge_matrix_tables(matrix_tables):
     """

@@ -27,10 +27,12 @@ class CommandHandler:
 
         matrix_tables = []
         for vcf_path in vcfs:
-            annotated_vcf = import_and_annotate_vcf(vcf_path)  # hail.import_vcf() and hail.VEP() within this function
+            annotated_vcf = import_and_annotate_vcf(vcf_path, self.args.annotate)  # hail.import_vcf() and hail.VEP() within this function
             matrix_tables.append(annotated_vcf)
 
         combined_mt = merge_matrix_tables(matrix_tables)  # Merge all matrix tables into one
+        if self.args.write:
+            combined_mt.write(os.path.join(self.args.dest, "dataset_{0}.mt".format(len(vcfs)))) # Write MatrixTable to disk
 
         reduced_mt = reduce_to_2d_table(
             combined_mt)  # Reduce the matrix table to a 2D matrix table with gene and frequency as keys
