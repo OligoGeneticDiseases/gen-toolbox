@@ -1,10 +1,10 @@
 {
     "command": [
-        "/home/pata/ensembl-vep/vep",
+        "/mnt/projects/ensembl-vep/vep",
         "--format", "vcf",
         "__OUTPUT_FORMAT_FLAG__",
-        "--fasta", "/home/pata/VEP/ref_fasta/ucsc.hg19.fasta",
-        "--dir_cache", "/home/pata/VEP/VEP_cache",
+        "--fasta", "/mnt/VEP/ref_fasta/ucsc.hg19.fasta",
+        "--dir_cache", "/mnt/VEP/VEP_cache",
         "--no_stats",
         "--cache", "--offline",
         "--assembly", "GRCh37",
