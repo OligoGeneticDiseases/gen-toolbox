@@ -2,11 +2,19 @@ import os
 import sys
 import datetime
 import shutil
+from itertools import islice
+
 import hail as hl
 import re
 from pathlib import Path
 
 unique = hash(datetime.datetime.utcnow())
+
+
+def batcher(iterable, batch_size):
+    iterator = iter(iterable)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch
 
 
 def find_filetype(dir, filetype, findunique=False, verbose=True):

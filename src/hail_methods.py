@@ -1,5 +1,78 @@
+import os
+
 import hail as hl
+import math
+from hail.utils import info
+
 from .utils import parse_empty
+
+
+def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTable:
+    """Joins MatrixTables in the provided list
+    :param list mts: list of MatrixTables to join together
+    :param str tmp_dir: path to temporary directory for intermediate results
+    :param int chunk_size: number of MatrixTables to join per chunk
+    :return: joined MatrixTable
+    :rtype: MatrixTable
+    """
+    staging = [mt.localize_entries("__entries", "__cols") for mt in mts]
+    stage = 0
+    while len(staging) > 1:
+        n_jobs = int(math.ceil(len(staging) / chunk_size))
+        info(f"multi_way_union_mts: stage {stage}: {n_jobs} total jobs")
+        next_stage = []
+        for i in range(n_jobs):
+            to_merge = staging[chunk_size * i : chunk_size * (i + 1)]
+            info(
+                f"multi_way_union_mts: stage {stage} / job {i}: merging {len(to_merge)} inputs"
+            )
+            merged = hl.Table.multi_way_zip_join(to_merge, "__entries", "__cols", "__rows")
+            merged = merged.annotate(
+                __entries=hl.flatten(
+                    hl.range(hl.len(merged.__entries)).map(
+                        lambda i: hl.coalesce(
+                            merged.__entries[i].__entries,
+                            hl.range(hl.len(merged.__cols[i].__cols)).map(
+                                lambda j: hl.null(
+                                    merged.__entries.__entries.dtype.element_type.element_type
+                                )
+                            ),
+                        )
+                    )
+                )
+            )
+            merged = merged.annotate_globals(
+                __cols=hl.flatten(merged.__cols.map(lambda x: x.__cols)))
+            merged = merged.annotate_rows(
+                __rows=hl.flatten(merged.__rows.map(lambda x: x.__rows)))
+
+            print(merged.aggregate((hl.agg.stats(hl.len(merged.__entries)), hl.len(merged.__cols))))
+            next_stage.append(
+                merged.checkpoint(
+                    os.path.join(tmp_dir, f"stage_{stage}_job_{i}.ht"), overwrite=True
+                )
+            )
+        info(f"done stage {stage}")
+        stage += 1
+        staging.clear()
+        staging.extend(next_stage)
+    return (
+        staging[0]
+        ._unlocalize_entries("__entries", "__cols", list(mts[0].col_key))
+        .unfilter_entries()
+    )
+
+
+def load_db(mts, tmpdir):
+    return multi_way_union_mts(mts, tmpdir, 64)
+
+
+def import_and_annotate_vcf_batch(vcfs, annotate=True):
+    batch = []
+    for vcf in vcfs:
+        batch.append(import_and_annotate_vcf(vcf, annotate))
+    return batch
+
 
 def import_and_annotate_vcf(vcf_path, annotate=True):
     """
@@ -14,6 +87,7 @@ def import_and_annotate_vcf(vcf_path, annotate=True):
     contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
     contig_recoding.update({"chrX": "X", "chrY": "Y"})
     mt = hl.import_vcf(vcf_path.__str__(), reference_genome='GRCh37', contig_recoding=contig_recoding)
+    mt = mt.filter_rows(mt.alleles[1] != '*') # Filter star alleles as these break VEP
     if annotate:
         mt = hl.vep(mt, './vep_settings.json')
         mt = mt.annotate_rows(impact=mt.vep.IMPACT,
@@ -21,16 +95,19 @@ def import_and_annotate_vcf(vcf_path, annotate=True):
                               HGNC_ID=mt.vep.HGNC_ID,
                               MAX_AF=mt.vep.MAX_AF)
     else: #get the data from the CSQ string
-        mt = mt.annotate_rows(VEP_str=mt.info.CSQ.first().split("\\|"))
-        mt = mt.annotate_entries(AC=mt.GT.n_alt_alleles(),
-                                 VF=hl.float(mt.AD[1] / mt.DP))
+        mt = mt.annotate_rows(vep=mt.info.CSQ.first().split("\\|")) # Convert CSQ string into the expected VEP output
 
-        mt = mt.annotate_rows(impact=mt.VEP_str[0],
-                              gene=mt.VEP_str[1],
-                              HGNC_ID=hl.int(parse_empty(mt.VEP_str[2])),
-                              MAX_AF=hl.float(parse_empty(mt.VEP_str[3])))
+
+        mt = mt.annotate_rows(impact=mt.vep[0],
+                              gene=mt.vep[1],
+                              HGNC_ID=hl.int(parse_empty(mt.vep[2])),
+                              MAX_AF=hl.float(parse_empty(mt.vep[3])))
+    mt = mt.annotate_entries(AC=mt.GT.n_alt_alleles(),
+                             VF=hl.float(mt.AD[1] / mt.DP))
     # TODO: annotate globals here
-    # TODO: filter variants here according to VF/DP ratios etc
+    mt = mt.drop(mt.vep) # Drop now duplicated field
+    mt = mt.filter_entries(mt.VF >= 0.3, keep=True)  # Remove all not ALT_pos < 0.3 / DP > 20
+    mt.filter_entries(mt.DP > 30, keep=True)
     return mt
 
 def merge_matrix_tables(matrix_tables):
@@ -46,7 +123,8 @@ def merge_matrix_tables(matrix_tables):
                                                    matrix_tables[0].GT, matrix_tables[0].VF, matrix_tables[0].AC)
     for mt in matrix_tables[1:]:
         mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
-        combined_mt = combined_mt.union_cols(mt, row_join_type="outer")
+        #combined_mt = combined_mt.union_cols(mt, row_join_type="outer")
+        combined_mt = combined_mt.union_rows(mt, _check_cols=False)
     return combined_mt
 
 def reduce_to_2d_table(mt, phenotype=None):
@@ -63,8 +141,10 @@ def reduce_to_2d_table(mt, phenotype=None):
     #TODO: create an anti-set where mt.phenotype != phenotype and write that out as anti-table
     # (for statistical comparisons)
     if phenotype is not None:
-        mt = mt.filter_cols(mt.phenotype == phenotype)
-    out = mt.group_rows_by(mt.gene).aggregate(
+        mt = mt.filter_cols(mt.phenotype.matches(phenotype), keep=True)
+    #out = mt.aggregate_cols(hl.struct(modifier=hl.struct()))
+    """
+    out = mt.group_rows_by(mt.gene).aggregate_entries(
         modifier=hl.struct(
             gnomad_1=hl.agg.filter(
                 (mt.MAX_AF < 0.01) & (mt.impact.contains(hl.literal("MODIFIER"))),
@@ -96,9 +176,17 @@ def reduce_to_2d_table(mt, phenotype=None):
             gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05) & (
                 mt.impact.contains(hl.literal("HIGH"))), hl.agg.sum(mt.AC)),
             gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05) & (
-                mt.impact.contains(hl.literal("HIGH"))), hl.agg.sum(mt.AC)))
-    )
-    return out
+                mt.impact.contains(hl.literal("HIGH"))), hl.agg.sum(mt.AC))))
+
+    #return out.result()
+    """
+    mt.describe()
+    results_dict = mt.aggregate_entries(hl.agg.group_by(mt.impact, hl.agg.group_by(mt.gene, hl.struct(
+        gnomad_1=hl.agg.filter((mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
+        gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05), hl.agg.sum(mt.AC)),
+        gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05), hl.agg.sum(mt.AC))))))
+    print(results_dict)
+    return results_dict
 
 def create_frequency_bins(mt, num_bins=16):
     """
@@ -115,8 +203,9 @@ def create_frequency_bins(mt, num_bins=16):
     mt = mt.group_rows_by(mt.gene, mt.bin).aggregate_rows(count=hl.agg.count())
     """
 
-    mt = mt.key_cols_by()
-    mt = mt.entries()  # Convert from MatrixTable to Table
-    #mt.describe()
-    #mt.show()
+    rows = mt.entries()
+    print(rows.aggregate(hl.agg.sum(rows.modifier.gnomad_1)))
+    #tb = mt.entries()  # Convert from MatrixTable to Table
+    #tb.describe()
+    #tb.show()
     return mt

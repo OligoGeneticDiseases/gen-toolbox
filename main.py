@@ -43,12 +43,12 @@ if __name__ == '__main__':
 
                 if str.lower(args.command) == "readvcfs":  # Handle readvcfs command
                     sc = SparkContext(conf=conf)
-                    hl.init(backend="spark", sc=sc, min_block_size=128)
+                    hl.init(backend="spark", sc=sc, min_block_size=64)
                     ch.handle_read_vcfs_command()
                 elif str.lower(args.command) == "loaddb":  # Handle readvcfs command
                     conf.set("spark.local.dir", "{0}".format(args.out))
                     sc = SparkContext(conf=conf)
-                    hl.init(backend="spark", sc=sc, min_block_size=128)
+                    hl.init(backend="spark", sc=sc, min_block_size=64)
                     ch.handle_load_db_command()
 
     except Exception as exp:
