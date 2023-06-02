@@ -74,13 +74,13 @@ class CommandFactory:
         )
     def create_load_db_command(self):
         loaddb = self.subparsers.add_parser("loaddb", help="Load a folder containing HailTables.")
-        loaddb.add_argument("-d",
-                            "--directory",
-                            help="Folder to load the Hail MatrixTable files from.",
-                            nargs='?',
-                            const=os.path.abspath(".."),
-                            required=True
-                            )
+        loaddb.add_argument(
+                            "-f",
+                            "--file",
+                            help="The VCF MatrixTable folder(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+                                 "files.",
+                            nargs='+',
+                            required=True)
         loaddb.add_argument("-r",
                             "--overwrite",
                             help="Overwrites any existing output MatrixTables, HailTables.",
