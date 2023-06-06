@@ -46,7 +46,7 @@ if __name__ == '__main__':
                     hl.init(backend="spark", sc=sc, min_block_size=64)
                     ch.handle_read_vcfs_command()
                 elif str.lower(args.command) == "loaddb":  # Handle readvcfs command
-                    conf.set("spark.local.dir", "{0}".format(args.out))
+                    conf.set("spark.local.dir", "{0}".format(args.dest))
                     sc = SparkContext(conf=conf)
                     hl.init(backend="spark", sc=sc, min_block_size=64)
                     ch.handle_load_db_command()

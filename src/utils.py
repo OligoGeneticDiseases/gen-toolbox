@@ -8,6 +8,8 @@ import hail as hl
 import re
 from pathlib import Path
 
+import hail.utils
+
 unique = hash(datetime.datetime.utcnow())
 
 
@@ -340,7 +342,7 @@ def get_metadata(metadata_path):
                 else:
                     metadata_dict[ecode] = ["NA", "NA"]
             else:
-                sys.stderr.write("Found duplicate key {0} for line {1}. Existing object {2}.\n"
+                hail.utils.warning("Metadata: found duplicate key {0} for line {1}. Existing object {2}."
                                  .format(ecode, s, (ecode, metadata_dict[ecode])))
     return metadata_dict
 

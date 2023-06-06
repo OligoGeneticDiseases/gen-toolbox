@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 import hail as hl
 import math
+import pandas as pd
 from hail.utils import info
 
 from .utils import parse_empty
@@ -62,11 +64,13 @@ def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTa
         .unfilter_entries()
     )
 
-
-def load_db(mts, tmpdir):
-    return multi_way_union_mts(mts, tmpdir, 64)
-
-
+def load_db_batch(mts):
+    batch = []
+    for mt_path in mts:
+        batch.append(load_mt(mt_path.__str__()))
+    return batch
+def load_mt(mt_path):
+    return hl.read_matrix_table(mt_path)
 def import_and_annotate_vcf_batch(vcfs, annotate=True):
     batch = []
     for vcf in vcfs:
@@ -113,7 +117,7 @@ def import_and_annotate_vcf(vcf_path, annotate=True):
 def merge_matrix_tables(matrix_tables):
     """
     Merge all matrix tables into one big matrix table with the same header and the same set of samples.
-
+    TODO: change signature to write after merge if --write is active (default=False)
     :param matrix_tables: List of MatrixTables.
     :return: Merged MatrixTable.
     """
@@ -125,6 +129,7 @@ def merge_matrix_tables(matrix_tables):
         mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
         #combined_mt = combined_mt.union_cols(mt, row_join_type="outer")
         combined_mt = combined_mt.union_rows(mt, _check_cols=False)
+    #hl.utils.info("OLIGO: Merged {0} MatrixTables")
     return combined_mt
 
 def reduce_to_2d_table(mt, phenotype=None):
@@ -134,7 +139,7 @@ def reduce_to_2d_table(mt, phenotype=None):
 
     :param phenotype: Phenotype that is filtered.
     :param mt: Input MatrixTable.
-    :return: Reduced MatrixTable.
+    :return: Returns a dict with the structure: impact { gene { Struct(gnomad_1, gnomad_1_5, gnomad_5) } }
     """
     #Group by globals (phenotype), group by genes, aggregate all into hl.gp_dosage() * 2 (number of total alleles)
     #Filter cols (tables) where phenotype matches command input
@@ -185,27 +190,24 @@ def reduce_to_2d_table(mt, phenotype=None):
         gnomad_1=hl.agg.filter((mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
         gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05), hl.agg.sum(mt.AC)),
         gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05), hl.agg.sum(mt.AC))))))
-    print(results_dict)
+    #print(results_dict)
     return results_dict
 
-def create_frequency_bins(mt, num_bins=16):
+def create_frequency_bins(inp, num_bins=16):
     """
     Create a final output frequency table with the specified number of bins (default: 16).
 
-    :param mt: Input MatrixTable.
+    :param mt: Input dict with a nested structs.
     :param num_bins: The number of bins to create in the final frequency table (default: 16).
-    :return: Final frequency table (MatrixTable).
-    """
-    """
-    # Group into 16 bins by IMPACT (4 bins) * MAX_AF (4 bins)
-    mt = mt.annotate_rows(freq=hl.float64(mt.n_het*2 + mt.n_hom_var) / (2 * hl.agg.count_where(mt.GT.is_defined())))
-    mt = mt.annotate_rows(bin=hl.int(hl.min(num_bins - 1, hl.ceil(mt.freq * num_bins))))
-    mt = mt.group_rows_by(mt.gene, mt.bin).aggregate_rows(count=hl.agg.count())
+    :return: Final frequency table (Dataframe).
     """
 
-    rows = mt.entries()
-    print(rows.aggregate(hl.agg.sum(rows.modifier.gnomad_1)))
-    #tb = mt.entries()  # Convert from MatrixTable to Table
-    #tb.describe()
-    #tb.show()
-    return mt
+
+    for k_impact, impact in inp.items():
+        for k_gene, gene in impact.items():
+            for frequency in gene.items():
+                print(k_impact, k_gene, frequency)
+    table = pd.DataFrame(data=inp)
+    #table = [["gnomad_1", "gnomad_1_5", "gnomad_5_100"]] = table["HIGH"].apply(lambda x: pd.Series(x*))
+    print(pd.json_normalize(inp))
+    return table

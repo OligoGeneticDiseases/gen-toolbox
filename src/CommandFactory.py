@@ -85,14 +85,16 @@ class CommandFactory:
                             "--overwrite",
                             help="Overwrites any existing output MatrixTables, HailTables.",
                             action="store_true",
-                            required=False
-                            )
-        loaddb.add_argument("-o",
-                            "--out",
-                            help="Output destination.",
-                            required=True,
-                            type=str
-                            )
+                            default=False,
+                            required=False)
+        loaddb.add_argument(
+                            "-d",
+                            "--dest",
+                            help="Destination folder to write the frequency tables and Hail MatrixTable files (if --write is active).",
+                            nargs='?',
+                            const=os.path.abspath(".."),
+                            required=True)
+        # Deprecated? Load the entire folder, might be useful if Nextflow scripts are used to add massive parallelization
         loaddb.add_argument("-n",
                             "--number",
                             help="Number of tables to be collated.",
@@ -103,7 +105,9 @@ class CommandFactory:
                             )
         loaddb.add_argument("-g",
                             "--globals",
-                            help="Tab delimited input file containing globals string for a given unique sample.",
+                            help="Tab delimited input file containing globals string  for a given unique sample (e.g. "
+                                 "Identifier\\t.Phenotype\\tMutations",
+                            required=True,
                             type=str
                             )
         loaddb.add_argument("--phenotype",
@@ -111,3 +115,9 @@ class CommandFactory:
                             required=False,
                             type=str
                             )
+        loaddb.add_argument(
+            "--write",
+            help="Write the unioned VCF MatrixTable to disk for later loading and handling.",
+            default=False,
+            action="store_true"
+        )
