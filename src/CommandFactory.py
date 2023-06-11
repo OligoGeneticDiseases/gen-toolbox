@@ -52,6 +52,14 @@ class CommandFactory:
             type=str
         )
         read_vcfs.add_argument(
+            "-p",
+            "--phenotype",
+            help="Filter according to this specific phenotype.",
+            required=False,
+            default=None,
+            type=str
+        )
+        read_vcfs.add_argument(
             "--annotate",
             help="Annotate flag will annotate input VCFs with Ensembl VEP. Set to false to skip annotations."
                  "Annotated VCFs must be contain VEP annotations (CSQ string must be present with gene names, "
@@ -71,6 +79,15 @@ class CommandFactory:
             help="Write the unioned VCF MatrixTable to disk for later loading and handling.",
             default=False,
             action="store_true"
+        )
+        read_vcfs.add_argument(
+            "-t",
+            "--temp",
+            help="Destination folder for all Hail temp files",
+            nargs='?',
+            const=os.path.abspath(".."),
+            default="/tmp/",
+            required=False
         )
     def create_load_db_command(self):
         loaddb = self.subparsers.add_parser("loaddb", help="Load a folder containing HailTables.")
@@ -121,3 +138,56 @@ class CommandFactory:
             default=False,
             action="store_true"
         )
+    def create_check_relatedness_command(self):
+        check_relatedness = self.subparsers.add_parser("relatedness2", help="Create a table of KING phi relatedness of input VCFs")
+        check_relatedness.add_argument(
+            "-f",
+            "--file",
+            help="The VCF file(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+                 "files.",
+            nargs='+',
+            required=True
+        )
+        check_relatedness.add_argument(
+            "-d",
+            "--dest",
+            help="Destination folder to write the frequency tables and Hail MatrixTable files (if --write is active).",
+            nargs='?',
+            const=os.path.abspath(".."),
+            required=True
+        )
+        check_relatedness.add_argument(
+            "-t",
+            "--temp",
+            help="Destination folder for all Hail temp files",
+            nargs='?',
+            const=os.path.abspath(".."),
+            default="/tmp/",
+            required=False
+        )
+    def create_pca_command(self):
+        pca_cmd = self.subparsers.add_parser("pca", help="Output a graph from PCA data.")
+        pca_cmd.add_argument(
+            "--pca",
+            help="Input PCA file.",
+            nargs="?",
+            const=os.path.abspath(".."),
+            required=True
+        )
+
+        pca_cmd.add_argument(
+            "--pca_tsv",
+            help="Input PCA_tsv file.",
+            nargs="?",
+            const=os.path.abspath(".."),
+            required=True
+        )
+        pca_cmd.add_argument(
+            "-d",
+            "--dest",
+            help="Destination folder to write the frequency tables and Hail MatrixTable files (if --write is active).",
+            nargs='?',
+            const=os.path.abspath(".."),
+            required=True
+        )
+

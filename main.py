@@ -16,6 +16,8 @@ if __name__ == '__main__':
         cf.create_find_type_command()
         cf.create_read_vcfs_command()
         cf.create_load_db_command()
+        cf.create_check_relatedness_command()
+        cf.create_pca_command()
         args = cf.parser.parse_args()
 
         if args.command is None:
@@ -41,15 +43,26 @@ if __name__ == '__main__':
                 conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
                 conf.set("spark.driver.bindAddress", "127.0.0.1")
 
+                # TODO: Add a temp dir option: https://discuss.hail.is/t/hail-doesnt-respect-tmp-dir/2319
+
                 if str.lower(args.command) == "readvcfs":  # Handle readvcfs command
                     sc = SparkContext(conf=conf)
-                    hl.init(backend="spark", sc=sc, min_block_size=64)
+                    conf.set("spark.local.dir", "{0}".format(args.dest))
+                    hl.init(backend="spark", sc=sc, min_block_size=4096, tmp_dir=args.temp, local_tmpdir=args.temp)
                     ch.handle_read_vcfs_command()
                 elif str.lower(args.command) == "loaddb":  # Handle readvcfs command
                     conf.set("spark.local.dir", "{0}".format(args.dest))
                     sc = SparkContext(conf=conf)
                     hl.init(backend="spark", sc=sc, min_block_size=64)
                     ch.handle_load_db_command()
+                elif str.lower(args.command) == "relatedness2":
+                    sc = SparkContext(conf=conf)
+                    conf.set("spark.local.dir", "{0}".format(args.dest))
+                    hl.init(backend="spark", sc=sc, min_block_size=4096, tmp_dir=args.temp, local_tmpdir=args.temp)
+                    ch.handle_check_relatedness()
+                    hl.utils.info("Finished with relatedness2 command!")
+                elif str.lower(args.command) == "pca":
+                    ch.handle_pca()
 
     except Exception as exp:
         print("Quitting.")

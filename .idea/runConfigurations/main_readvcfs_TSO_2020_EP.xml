@@ -1,11 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="main_readvcfs_1305" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="main_readvcfs_TSO_2020_EP" type="PythonConfigurationType" factoryName="Python" folderName="realdata">
     <module name="gen-toolbox" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
-    <envs>
-      <env name="PYTHONUNBUFFERED" value="1" />
-    </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <option name="IS_MODULE_SDK" value="true" />
@@ -13,7 +10,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-    <option name="PARAMETERS" value="readvcfs -f /mnt/sdb/TSO_data/HPC_annotated/TSO_2022/ -d /mnt/sdb/tmp -g &quot;/mnt/sdb/phenotype-pseudon.txt&quot; --no-annotate --write" />
+    <option name="PARAMETERS" value="readvcfs -f /mnt/sdb/TSO_data/HPC_annotated/TSO_2020/ -d /mnt/sdb/tmp -g &quot;/mnt/sdb/phenotype-pseudon.txt&quot; --no-annotate --write --temp /mnt/sdb/tmp --phenotype EP" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

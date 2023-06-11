@@ -143,7 +143,7 @@ def permutation_analysis(df_case, df_control, combination_length=5, iterations=2
                 # Depicts the size of the input dataframe (number of cases summed together)
                 # Currently a hardcoded value depending on the samples in the case group (1389) vs control group (826)
                 vals2.append(
-                    np.divide(np.divide(total_variants_case.sum(), 1389), np.divide(total_variants_control.sum(), 826)))
+                    np.divide(np.divide(total_variants_case.sum(), 179), np.divide(total_variants_control.sum(), 1225)))
             else:
                 vals2.append(np.NaN)
             j += 1
@@ -158,10 +158,10 @@ def permutation_analysis(df_case, df_control, combination_length=5, iterations=2
     for frequency_column in fraction_results_2.columns:
 
         # Average sample normalization enrichment ratios for "likely impactful" and "likely non-impactful" genes
-        q_avg = np.divide(np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]) / 1389,
-                          np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]) / 826)
-        q_avg_control_group = np.divide(np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]) / 1389,
-                                        np.sum(df_control[df_control.gene.isin(neg_control_genes)][frequency_column]) / 826)
+        q_avg = np.divide(np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]) / 179,
+                          np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]) / 1225)
+        q_avg_control_group = np.divide(np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]) / 179,
+                                        np.sum(df_control[df_control.gene.isin(neg_control_genes)][frequency_column]) / 1225)
         print("Impact group (av-norm. ): {0}, case_genes_enrichment: {1}, control_genes_enrichment: {2}".format(
             frequency_column,
             q_avg, q_avg_control_group))
@@ -224,8 +224,8 @@ if __name__ == "__main__":
     start = datetime.datetime.now()
     args = parser.parse_args()
     # gene_list = []
-    normal_df = pd.read_csv(args.input1, sep="\t", header=0)
-    rv_df = pd.read_csv(args.input2, sep="\t", header=0)
+    normal_df = pd.read_csv(args.input1, sep=",", header=0)
+    rv_df = pd.read_csv(args.input2, sep=",", header=0)
     outlines = []
     if args.out is None and len(outlines) > 0:
         filename = str(uuid.uuid4())
