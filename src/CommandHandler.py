@@ -40,7 +40,7 @@ def find_elements(dictionary, x, pos=0, sep=None):
 
 def write_frequency_table(result, args, name, extra_tag=""):
     table_path = hail.utils.timestamp_path(os.path.join(args.dest, "{0}_{1}.tsv".format(name,extra_tag)))
-    if args.write and (not Path(table_path).exists() or args.overwrite):
+    if not Path(table_path).exists() or args.overwrite:
 
         result.to_csv(table_path)
         hail.utils.info("OLIGO: wrote output to {0}".format(table_path))

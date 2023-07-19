@@ -10,7 +10,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-    <option name="PARAMETERS" value="readvcfs -f /mnt/sdb/TSO_data/HPC_annotated/TSO_2020/ -d /mnt/sdb/tmp -g &quot;/mnt/sdb/phenotype-pseudon.txt&quot; --no-annotate --write --temp /mnt/sdb/tmp --phenotype EP" />
+    <option name="PARAMETERS" value="readvcfs -f /mnt/sdb/TSO_data/HPC_annotated/TSO_2020/ -d /mnt/sdb/tmp -g &quot;/mnt/sdb/phenotype-pseudon.txt&quot; --no-annotate --write --temp /mnt/sdb/tmp --phenotype KUULMINE" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

@@ -81,17 +81,23 @@
         "XPC"
     ],
     "rv_genes": [
-        "BRCA1",
-        "BRCA2",
-        "CHEK2",
-        "PALB2",
-        "ATM"
+        "ATP1A3",
+        "OTOF",
+        "DFNB59",
+        "OPA1",
+        "DIAPH3",
+        "ATP11A",
+        "CABP2",
+        "TMEM43"
     ],
     "neg_control_genes": [
         "APC",
         "BMPR1A",
         "MSH2",
         "MSH6",
-        "PTEN"
+        "PTEN",
+        "BRCA1",
+        "BRCA2",
+        "WT1"
     ]
 }
