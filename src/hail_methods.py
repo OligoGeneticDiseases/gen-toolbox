@@ -12,6 +12,12 @@ from .utils import parse_empty, get_metadata, trim_prefix
 
 
 def create_related_samples_table(mt: hl.MatrixTable) -> hl.Table:
+    """
+    # TODO: Hail/PySpark does not like large sample tables (thousands) and will throw a memory leak
+    Try to do KING relatedness inference on a matrixtable containing many samples
+    :param mt: A combined matrixtable with entries as samples
+    :return: Relatedness table
+    """
     hl.utils.info("Reducing input.")
     test_intervals = ['2']
     mt = hl.filter_intervals(
@@ -29,7 +35,9 @@ def create_related_samples_table(mt: hl.MatrixTable) -> hl.Table:
     return king_table
 
 def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTable:
-    """Joins MatrixTables in the provided list
+    """
+    Joins MatrixTables in the provided list in a multi way fashion, that is tries to preserve the unique structure of
+    each MatrixTable. Currently unused.
     :param list mts: list of MatrixTables to join together
     :param str tmp_dir: path to temporary directory for intermediate results
     :param int chunk_size: number of MatrixTables to join per chunk

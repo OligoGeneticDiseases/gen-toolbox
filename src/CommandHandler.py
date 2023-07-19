@@ -38,6 +38,7 @@ def find_elements(dictionary, x, pos=0, sep=None):
             result[key] = item
     return result
 
+
 def write_frequency_table(result, args, name, extra_tag=""):
     table_path = hail.utils.timestamp_path(os.path.join(args.dest, "{0}_{1}.tsv".format(name,extra_tag)))
     if not Path(table_path).exists() or args.overwrite:
@@ -46,6 +47,8 @@ def write_frequency_table(result, args, name, extra_tag=""):
         hail.utils.info("OLIGO: wrote output to {0}".format(table_path))
     else:
         hail.utils.info("OLIGO: skipped writing output:\n{0}.".format(result))
+
+
 class CommandHandler:
     def __init__(self, args):
         self.args = args
@@ -55,6 +58,11 @@ class CommandHandler:
         write_filelist(self.args.directory, "{0}.{1}.txt".format(os.path.basename(os.path.normpath(self.args.source)), self.args.type), files, regex=self.args.regex)
 
     def handle_read_vcfs_command(self):
+        """
+        Handle read_vcfs command with the command input. This will create 2 output tables (create_frequency_bins)
+        for a match and anti_match set of a given phenotype (matches from globals file).
+        Creates batches of VCF files so that Hail would not crash.
+        """
         full_paths = [Path(path) for path in self.args.file]
         vcfs = []
         #  If phenotype is set, write two tables of both phenotype match and the opposite set
@@ -80,7 +88,7 @@ class CommandHandler:
         else:
             match_and_anti_match.append(vcfs) # Append all
 
-        # Create frequency tables for both the
+        # Create frequency tables for both match and anti-match
         for k, positive_or_negative_set in enumerate(match_and_anti_match):
             n_batches = int(len(positive_or_negative_set)/N_BATCH)
             batch_matrix_tables = []
@@ -116,6 +124,11 @@ class CommandHandler:
         handle_quit()
 
     def handle_load_db_command(self):
+        """
+        Loads Hail MatrixTables as a database, i.e. load several intermediary batch files into a single output.
+        Outputs the combined frequency bins table (create_frequency_bins). Uses batching like in read_vcf
+        This command is not required in normal analysis workflow.
+        """
         metadata_dict = None
         mt_paths = []
         if self.args.globals is not None:
@@ -170,6 +183,10 @@ class CommandHandler:
         hail.utils.info("OLIGO: Finished LoadDB command.")
 
     def handle_check_relatedness(self):
+        """
+        Handles the check relatedness command, using KING inference.
+        Outputs a table of probably related samples and phi scores in the specified output folder
+        """
         mt_paths = list()
         full_paths = [Path(path) for path in self.args.file]
         for path in full_paths:
@@ -194,5 +211,9 @@ class CommandHandler:
             dest.parent.mkdir()
         king.entries().to_pandas().to_csv(dest.__str__())
         hail.utils.info("Wrote relatedness file to: {0}".format(dest))
+
     def handle_pca(self):
+        """
+        This function will graph PCA relatedness from a relatedness table. Unused.
+        """
         utils.pca_graphing(self.args.pca, self.args.pca_tsv)
