@@ -1,20 +1,18 @@
 {
     "command": [
-        "/mnt/sdb/projects/ensembl-vep/vep",
+        "/home/pata/projects/ensembl-vep/vep",
         "--format", "vcf",
         "__OUTPUT_FORMAT_FLAG__",
-        "--fasta", "/mnt/sdb/VEP/ref_fasta/ucsc.hg19.fasta",
-        "--dir_cache", "/mnt/sdb/VEP/VEP_cache/",
+        "--fasta", "/media/sf_VP/ref_fasta",
+        "--dir_cache", "/media/sf_VP/VEP_cache",
         "--no_stats",
         "--cache", "--offline",
         "--assembly", "GRCh37",
-        "--cache_version", "108",
         "--merged",
         "--MAX_AF",
         "--symbol",
         "--fields", "IMPACT,SYMBOL,HGNC_ID,MAX_AF,MAX_AF_POPS",
         "--pick",
-        "--canonical",
         "--use_given_ref",
         "--offline",
         "-o", "STDOUT"

@@ -2,11 +2,53 @@ import os
 import sys
 import datetime
 import shutil
+from itertools import islice
+
 import hail as hl
 import re
 from pathlib import Path
 
+import hail.utils
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 unique = hash(datetime.datetime.utcnow())
+
+
+
+def pca_graphing(pca, pca_locs):
+
+
+    # PCA analysis code is from https://www.jcchouinard.com/pca-with-python/
+    # Input file is converted into .tsv format (whitespaces replaced)
+
+    pca_df = pd.read_table(pca, sep=" ")[0:2]
+    locs = pd.read_table(pca_locs)
+
+    pca_df_T = pca_df.set_index('SampleID').T.reset_index()
+    pca_df_T.columns = ['genotype_id', 'PC1', 'PC2']
+    pca_merged = pca_df_T.merge(locs, how="inner", on='genotype_id')
+    sns.set()
+
+    sns.lmplot(
+        x='PC1',
+        y='PC2',
+        data=pca_merged,
+        hue='population_code',
+        fit_reg=False,
+        legend=True
+    )
+
+    plt.title('2D PCA Graph', y=0.9)
+    plt.figure(figsize=(10, 10))
+    plt.show()
+
+
+def batcher(iterable, batch_size):
+    iterator = iter(iterable)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch
 
 
 def find_filetype(dir, filetype, findunique=False, verbose=True):
@@ -332,7 +374,7 @@ def get_metadata(metadata_path):
                 else:
                     metadata_dict[ecode] = ["NA", "NA"]
             else:
-                sys.stderr.write("Found duplicate key {0} for line {1}. Existing object {2}.\n"
+                hail.utils.warning("Metadata: found duplicate key {0} for line {1}. Existing object {2}."
                                  .format(ecode, s, (ecode, metadata_dict[ecode])))
     return metadata_dict
 
