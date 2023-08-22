@@ -1,17 +1,12 @@
 import os
-import sys
+import hail as hl
 from pathlib import Path
 import datetime
-
-import hail.utils
 from hail.utils import info
+from data_processing.vcf import read, write, transform
+from data_processing.hail import genomic_operations, utils
+from utils.file import file_search
 
-from . import utils
-from .hail_methods import import_and_annotate_vcf, merge_matrix_tables_rows, multi_way_union_mts, reduce_to_2d_table, \
-    create_frequency_bins, \
-    import_and_annotate_vcf_batch, load_db_batch, load_mt, merge_matrix_tables_cols, create_related_samples_table
-from .utils import find_filetype, batcher, get_metadata, trim_prefix
-from .file_utility import write_filelist
 
 unique = hash(datetime.datetime.utcnow())
 N_BATCH = 50
@@ -47,7 +42,6 @@ def write_frequency_table(result, args, name, extra_tag=""):
         hail.utils.info("OLIGO: wrote output to {0}".format(table_path))
     else:
         hail.utils.info("OLIGO: skipped writing output:\n{0}.".format(result))
-
 
 class CommandHandler:
     def __init__(self, args):
