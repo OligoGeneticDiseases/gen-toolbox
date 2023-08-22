@@ -2,16 +2,9 @@ import os
 import sys
 import datetime
 import shutil
-from itertools import islice
-
 import hail as hl
-import re
 from pathlib import Path
-
-import hail.utils
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+from src.data_processing.file_io.readers import trim_prefix
 
 unique = hash(datetime.datetime.utcnow())
 

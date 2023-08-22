@@ -6,9 +6,6 @@ try:
 except ImportError:
     from os import walk
 
-import shutil
-import re
-
 duplicates = 0
 
 def find_file(main_dir, filename):

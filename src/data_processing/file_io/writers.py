@@ -1,13 +1,12 @@
 import os
+import shutil
+import re
 
 # Import a faster walker if it is installed
 try:
     from scandir import walk
 except ImportError:
     from os import walk
-
-import shutil
-import re
 
 duplicates = 0
 
