@@ -1,11 +1,12 @@
 import os
-from pathlib import Path
+import hail
 import datetime
+from pathlib import Path
 from hail.utils import info
 from data_processing.hail import genomic_operations, utils
 
 
-unique = hash(datetime.datetime.utcnow())
+unique = hash(datetime.datetime.utcnow()) #TODO: delete, variable not used
 N_BATCH = 50
 
 def handle_quit():
@@ -34,7 +35,6 @@ def find_elements(dictionary, x, pos=0, sep=None):
 def write_frequency_table(result, args, name, extra_tag=""):
     table_path = hail.utils.timestamp_path(os.path.join(args.dest, "{0}_{1}.tsv".format(name,extra_tag)))
     if not Path(table_path).exists() or args.overwrite:
-
         result.to_csv(table_path)
         hail.utils.info("OLIGO: wrote output to {0}".format(table_path))
     else:

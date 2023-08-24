@@ -6,7 +6,7 @@ try:
 except ImportError:
     from os import walk
 
-duplicates = 0
+duplicates = 0 #TODO: define as global?
 
 def find_file(main_dir, filename):
     """

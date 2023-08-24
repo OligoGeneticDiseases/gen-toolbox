@@ -190,4 +190,3 @@ class CommandFactory:
             const=os.path.abspath(".."),
             required=True
         )
-

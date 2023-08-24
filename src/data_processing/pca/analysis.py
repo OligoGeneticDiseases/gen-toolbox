@@ -3,8 +3,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 def pca_graphing(pca, pca_locs):
-
-
     # PCA analysis code is from https://www.jcchouinard.com/pca-with-python/
     # Input file is converted into .tsv format (whitespaces replaced)
 

@@ -41,7 +41,7 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
         mt = hl.filter_intervals(mt,[hl.parse_locus_interval(x, ) for x in interval])
     mt = mt.filter_rows(mt.alleles[1] != '*') # Filter star alleles as these break VEP
     if annotate:
-        mt = hl.vep(mt, './vep_settings.json')
+        mt = hl.vep(mt, './src/config/vep_settings.json')
         mt = mt.annotate_rows(impact=mt.vep.IMPACT,
                               gene=mt.vep.SYMBOL,
                               HGNC_ID=mt.vep.HGNC_ID,

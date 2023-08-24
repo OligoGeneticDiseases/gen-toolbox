@@ -9,7 +9,7 @@ from src.data_processing.file_io.readers import trim_prefix
 unique = hash(datetime.datetime.utcnow())
 
 def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
-    gnomad_tb = None
+    gnomad_tb = None #TODO: define as global variable?
     hailtables = dict()
     metadata_dict = get_metadata(metadata)
     for vcfpath in vcfs:
