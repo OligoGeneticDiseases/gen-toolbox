@@ -1,10 +1,10 @@
 import os
 import hail
+import hail.utils
 import datetime
 from pathlib import Path
 from hail.utils import info
 from data_processing.hail import genomic_operations, utils
-
 
 unique = hash(datetime.datetime.utcnow()) #TODO: delete, variable not used
 N_BATCH = 50

@@ -1,7 +1,7 @@
 import argparse
 import sys
 from src.cli.command_factory import CommandFactory
-from src.cli.command_handler import CommandHandler
+from src.cli.command_methods import CommandHandler
 
 def main():
     parser = argparse.ArgumentParser(description='Genetic toolbox for variant analysis')
