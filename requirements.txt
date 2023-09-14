@@ -4,3 +4,5 @@ pandas>=1.4.4
 scipy>=1.9.3
 matplotlib~=3.6.2
 numpy~=1.23.4
+pylint==2.17.5
+pyink==23.5.0

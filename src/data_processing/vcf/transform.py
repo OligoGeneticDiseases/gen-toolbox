@@ -1,4 +1,6 @@
 import hail as hl
+import pandas as pd
+import os
 
 #Content: VCF data transformation functions.
 

@@ -1,10 +1,12 @@
-import os
-import sys
 import datetime
+import os
 import shutil
-import hail as hl
+import sys
 from pathlib import Path
-from src.data_processing.file_io.readers import trim_prefix
+
+import hail as hl
+
+from src.data_processing.file_io.writers import trim_prefix
 
 unique = hash(datetime.datetime.utcnow())
 

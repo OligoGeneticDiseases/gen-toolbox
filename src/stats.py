@@ -1,14 +1,15 @@
 import argparse
 import datetime
 import json
+import re
 import sys
 import uuid
-import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 
 def load_gene_config(json_file):
     """Load gene configuration from a JSON file."""
@@ -205,7 +206,7 @@ if __name__ == "__main__":
         if args.out is None and len(outlines) > 0:
             filename = str(uuid.uuid4())
             with open(filename, "w+") as out:
-                out.write(outlines)
+                out.write(outlines) #TODO: Expected type 'str' (matched generic type 'AnyStr'), got 'list' instead
             sys.stderr.write("Created output file {0}.".format(filename))
 
         end = datetime.datetime.now()

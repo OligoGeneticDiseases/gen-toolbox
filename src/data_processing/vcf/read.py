@@ -1,5 +1,8 @@
 import hail as hl
-from .utils import parse_empty, get_metadata, trim_prefix
+
+from src.data_processing.vcf.hail_metods import parse_empty
+from src.utils.general.string_operations import trim_prefix
+
 
 #Content: Functions related to reading various file formats.
 

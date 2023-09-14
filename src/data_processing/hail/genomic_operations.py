@@ -1,6 +1,9 @@
-import hail as hl
 import math
 import os
+
+import hail as hl
+from hail.utils import info
+
 
 #Content: Functions specifically related to genomic operations using Hail (from hail_methods.py).
 

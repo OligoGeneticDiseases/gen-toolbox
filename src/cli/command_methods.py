@@ -1,10 +1,21 @@
+import datetime
 import os
 import hail
-import hail.utils
-import datetime
 from pathlib import Path
 from hail.utils import info
-from data_processing.hail import genomic_operations, utils
+
+from src.utils.file.file_meta import get_metadata
+from src.utils.general.data_manipulation import batcher
+from src.data_processing.file_io.readers import find_filetype
+from src.data_processing.file_io.writers import write_filelist, trim_prefix
+from src.data_processing.vcf.read import import_and_annotate_vcf_batch, load_db_batch, load_mt
+from src.data_processing.vcf.transform import reduce_to_2d_table, create_frequency_bins
+from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows, merge_matrix_tables_cols, \
+    create_related_samples_table
+from src.data_processing.pca.analysis import pca_graphing
+
+
+
 
 unique = hash(datetime.datetime.utcnow()) #TODO: delete, variable not used
 N_BATCH = 50
@@ -207,4 +218,4 @@ class CommandHandler:
         """
         This function will graph PCA relatedness from a relatedness table. Unused.
         """
-        utils.pca_graphing(self.args.pca, self.args.pca_tsv)
+        pca_graphing(self.args.pca, self.args.pca_tsv)

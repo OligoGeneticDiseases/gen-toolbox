@@ -1,6 +1,7 @@
 import os
-import shutil
 import re
+import shutil
+from src.data_processing.file_io.readers import find_vcfs, find_bams
 
 # Import a faster walker if it is installed
 try:

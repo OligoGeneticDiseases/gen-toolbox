@@ -1,4 +1,4 @@
-import os
+from itertools import islice
 
 # Import a faster walker if it is installed
 try:
@@ -6,8 +6,6 @@ try:
 except ImportError:
     from os import walk
 
-import shutil
-import re
 
 def batcher(iterable, batch_size):
     iterator = iter(iterable)
