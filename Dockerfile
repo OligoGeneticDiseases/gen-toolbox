@@ -9,6 +9,7 @@ RUN mkdir -p /usr/share/man/man1 && \
     && rm -rf /var/lib/apt/lists/* && \
     pip3 install -r requirements.txt
 
+RUN pylint .
 
 
 ENTRYPOINT [ "python", "./main.py" ]

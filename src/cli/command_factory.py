@@ -60,7 +60,6 @@ class CommandFactory:
             type=str
         )
         read_vcfs.add_argument(
-            "--annotate",
             help="Annotate flag will annotate input VCFs with Ensembl VEP. Set to false to skip annotations."
                  "Annotated VCFs must be contain VEP annotations (CSQ string must be present with gene names, "
                  "allele frequencies).",
@@ -190,4 +189,3 @@ class CommandFactory:
             const=os.path.abspath(".."),
             required=True
         )
-

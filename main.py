@@ -2,9 +2,10 @@ from pathlib import Path
 import argparse
 import hail as hl
 from pyspark import SparkConf, SparkContext
+import sys
 
-from src.CommandFactory import CommandFactory
-from src.CommandHandler import CommandHandler
+from src.cli.command_factory import CommandFactory
+from src.cli.command_methods import CommandHandler
 
 hail_home = Path(hl.__file__).parent.__str__()
 if __name__ == '__main__':
@@ -43,6 +44,7 @@ if __name__ == '__main__':
                 conf.set("spark.kryo.registrator", "is.hail.kryo.HailKryoRegistrator")
                 conf.set("spark.driver.bindAddress", "127.0.0.1")
 
+                # TODO: import spark config from json file
                 # TODO: Add a temp dir option: https://discuss.hail.is/t/hail-doesnt-respect-tmp-dir/2319
 
                 if str.lower(args.command) == "readvcfs":  # Handle readvcfs command
@@ -64,6 +66,6 @@ if __name__ == '__main__':
                 elif str.lower(args.command) == "pca":
                     ch.handle_pca()
 
-    except Exception as exp:
-        print("Quitting.")
-        raise
+    except Exception as e:
+        print("ERROR: " + str(e))
+        sys.exit(1)

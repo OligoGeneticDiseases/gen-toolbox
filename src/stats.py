@@ -1,16 +1,15 @@
 import argparse
 import datetime
 import json
-import os.path
+import re
 import sys
 import uuid
-import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.stats as sp
+
 
 def load_gene_config(json_file):
     """Load gene configuration from a JSON file."""
@@ -179,7 +178,7 @@ if __name__ == "__main__":
     analyse.add_argument("--input1", "-i", type=validate_file, help="Input file path", required=True)
     analyse.add_argument("--input2", "-i2", type=validate_file, help="Input file path", required=True)
     analyse.add_argument("--gene_config", "-g", type=validate_file, help="Gene configuration JSON file path",
-                         required=True)
+                         required=True) #TODO: ask if you would like to proceed with src/config/gene_config.json or different
     analyse.add_argument("--out", "-", type=validate_file, help="Output file path", required=False)
     analyse.add_argument("--iterations", "-n", type=int, help="Total permutation iterations to be ran. ")
 
@@ -207,7 +206,7 @@ if __name__ == "__main__":
         if args.out is None and len(outlines) > 0:
             filename = str(uuid.uuid4())
             with open(filename, "w+") as out:
-                out.write(outlines)
+                out.write(outlines) #TODO: Expected type 'str' (matched generic type 'AnyStr'), got 'list' instead
             sys.stderr.write("Created output file {0}.".format(filename))
 
         end = datetime.datetime.now()

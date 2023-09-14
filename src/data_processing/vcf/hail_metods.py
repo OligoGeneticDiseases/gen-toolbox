@@ -1,192 +1,17 @@
-import os
-import sys
 import datetime
+import os
 import shutil
-from itertools import islice
-
-import hail as hl
-import re
+import sys
 from pathlib import Path
 
-import hail.utils
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import hail as hl
+
+from src.data_processing.file_io.writers import trim_prefix
 
 unique = hash(datetime.datetime.utcnow())
 
-
-
-def pca_graphing(pca, pca_locs):
-
-
-    # PCA analysis code is from https://www.jcchouinard.com/pca-with-python/
-    # Input file is converted into .tsv format (whitespaces replaced)
-
-    pca_df = pd.read_table(pca, sep=" ")[0:2]
-    locs = pd.read_table(pca_locs)
-
-    pca_df_T = pca_df.set_index('SampleID').T.reset_index()
-    pca_df_T.columns = ['genotype_id', 'PC1', 'PC2']
-    pca_merged = pca_df_T.merge(locs, how="inner", on='genotype_id')
-    sns.set()
-
-    sns.lmplot(
-        x='PC1',
-        y='PC2',
-        data=pca_merged,
-        hue='population_code',
-        fit_reg=False,
-        legend=True
-    )
-
-    plt.title('2D PCA Graph', y=0.9)
-    plt.figure(figsize=(10, 10))
-    plt.show()
-
-
-def batcher(iterable, batch_size):
-    iterator = iter(iterable)
-    while batch := list(islice(iterator, batch_size)):
-        yield batch
-
-
-def find_filetype(dir, filetype, findunique=False, verbose=True):
-    """
-    Will find all files of a certain type (e.g. .vcf or .bam files) in a directory. Method will enter every
-    subdirectory. Can look for only a single filetype at a time.
-    :param verbose: If verbose, report repeating filenames in terminal
-    :param dir: String of directory to walk.
-    :param filetype: String of filetype to search for (e.g. .vcf or .bam)
-    :param findunique: By default find all files of a given type,
-    setting it to True will skip files with the same name but different location
-    :return: list of tuple of file name and file directory
-    """
-    assert os.path.exists(dir), "Path {} does not exist.".format(dir)
-    duplicates = 0
-
-    unique_files = list(())
-    for (dirpath, dirnames, files) in os.walk(dir):
-        for name in files:
-            if name.endswith(filetype):
-                if name not in map(lambda x: x[0], unique_files):
-                    unique_files.append((name, os.path.join(dirpath, name)))
-                else:
-                    duplicates += 1
-                    if verbose:
-                        print("Duplicate filename {0}".format(name))
-                    if not findunique:
-                        # Append anyway if findunique is set to False
-                        unique_files.append((name, os.path.join(dirpath, name)))
-    print("Duplicate filenames: {0}".format(duplicates))
-    return unique_files
-
-
-def write_filelist(input_dir, file_name, file_paths, include_duplicates=False, verbose=1, regex=None):
-    '''
-    This function writes lists of files that have been inputted as arrays.
-    :param input_dir: Directory to be written to.
-    :param file_name: Name of the file to be written to.
-    :param file_paths: The filepaths as an array of tuples. Filename and filepath.
-    :param include_duplicates: Whether to include duplicate files into the list. False by default.
-    If False, write duplicate filename-paths into a separate file duplicate_.*
-    :param verbose level: Verbosity of stdout. Prints filepaths that are looked at. Default 1. Show
-    Total values but no lines in the terminal, 0 turns off all terminal response. TODO: Convert to logging
-    :param regex: regex expression to be evaluated. For example, try to match only certain files containing a string.
-    Regex is done after duplicate prefix check.
-    :return: Returns tuple of (<all paths written to the main file>, <duplicate files written out or empty list>)
-    '''
-    try:
-        regex_rules = None
-        if regex is not None:
-            regex_rules = re.compile(regex, flags=re.I)
-        with open(os.path.join(input_dir, file_name), "w") as f:
-            all_paths = list()
-            unique_prefixes = list()
-            duplicate_prefixes = list()
-            regexed_out = 0
-            file_paths.sort(key=lambda pair: pair[0])
-            for file_path_pair in file_paths:
-                full_path = file_path_pair[1]
-                all_paths.append(full_path)
-                prefix = trim_prefix(file_path_pair[0])  # E0000000 /trimmed by "." and "_"
-                # Is unique
-                if prefix not in unique_prefixes:
-                    if regex is not None:
-                        if eval_regex(full_path,
-                                      regex_rules) is not None:  # there is a match with the corresponding regex
-                            unique_prefixes.append(prefix)  # it is unique and added to the list
-                            f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
-                            if verbose > 1:
-                                print("Unique regexed: {0}".format(full_path))
-                        else:
-                            regexed_out += 1
-                            if verbose > 1:
-                                print("No regex match for: {0}".format(full_path))
-                    else:
-                        unique_prefixes.append(prefix)  # it is unique and added to the list
-                        f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
-                        if verbose > 1:
-                            print("Unique unregexed: {0}".format(full_path))
-                    all_paths.append(full_path)
-                else:
-                    duplicate_prefixes.append([prefix, file_path_pair[0], file_path_pair[1]])
-                    if include_duplicates:
-                        if regex is not None:
-                            if eval_regex(full_path,
-                                          regex_rules) is not None:  # there is a match with the corresponding regex
-                                f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
-                                if verbose > 1:
-                                    print("Not unique regexed: {0}".format(full_path))
-
-                        else:
-                            f.write(prefix + "\t" + full_path + "\n")  # write lines only if duplicates included
-                            if verbose > 1:
-                                print("Not unique unregexed: {0}".format(full_path))
-                        all_paths.append(full_path)
-
-            if verbose > 0:
-                print("Writing list to {}".format(os.path.join(input_dir, file_name)))
-                print("Total lines: {}".format(len(file_paths)))
-                print("Duplicate prefixes: {}".format(len(duplicate_prefixes)))
-                print("Regex matches {0}, regex filtered out {1} lines.".format(len(unique_prefixes), regexed_out))
-            if not include_duplicates:  # write the duplicates to a separate file
-                duplicate_filename = os.path.join(input_dir, "duplicates_" + file_name)
-                if len(duplicate_prefixes) > 0:
-                    if verbose > 0:
-                        print("Creating duplicate sample list in {0}".format(duplicate_filename))
-                    f_duplicates = open(duplicate_filename, "w")
-                    for duplicate_name in duplicate_prefixes:
-                        f_duplicates.write("\t".join(duplicate_name) + "\n")
-
-        return all_paths, duplicate_prefixes
-
-    except (NameError, KeyboardInterrupt, SyntaxError, AssertionError):
-        if NameError or AssertionError:
-            print("Unable to find {}".format(input_dir))
-            raise
-        if KeyboardInterrupt:
-            print("Quitting.")
-
-
-def trim_prefix(filename, seperator="."):
-    prefix_clean = filename.rsplit(".")[0].rsplit("_")[0]
-    return prefix_clean
-
-
-def eval_regex(text, regex):
-    """
-    Will return the parsed string with the defined regex rule
-    :param text: Text to be parsed
-    :param regex: Regex ruleset
-    :return: Parsed string or None if not able to parse.
-    """
-    result = regex.search(text)
-    return result
-
-
 def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
-    gnomad_tb = None
+    gnomad_tb = None #TODO: define as global variable?
     hailtables = dict()
     metadata_dict = get_metadata(metadata)
     for vcfpath in vcfs:
@@ -360,23 +185,7 @@ def parse_empty(text):
     return hl.if_else(text == "", hl.missing(hl.tint32), hl.float(text))
 
 
-def get_metadata(metadata_path):
-    p = Path(metadata_path)
-    metadata_dict = dict()
-    assert p.exists()
-    with p.open(encoding="latin-1") as f:
-        for line in f.readlines():
-            s = line.strip().split("\t")
-            ecode = trim_prefix(s[0])
-            if ecode not in metadata_dict:
-                if len(s) >= 3:
-                    metadata_dict[ecode] = [s[1], s[2]]
-                else:
-                    metadata_dict[ecode] = ["NA", "NA"]
-            else:
-                hail.utils.warning("Metadata: found duplicate key {0} for line {1}. Existing object {2}."
-                                 .format(ecode, s, (ecode, metadata_dict[ecode])))
-    return metadata_dict
+
 
 
 def load_hailtables(dest, number, out=None, metadata=None, overwrite=False, phenotype=None):

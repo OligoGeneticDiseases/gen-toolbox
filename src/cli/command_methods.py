@@ -1,19 +1,23 @@
-import os
-import sys
-from pathlib import Path
 import datetime
-
-import hail.utils
+import os
+import hail
+from pathlib import Path
 from hail.utils import info
 
-from . import utils
-from .hail_methods import import_and_annotate_vcf, merge_matrix_tables_rows, multi_way_union_mts, reduce_to_2d_table, \
-    create_frequency_bins, \
-    import_and_annotate_vcf_batch, load_db_batch, load_mt, merge_matrix_tables_cols, create_related_samples_table
-from .utils import find_filetype, batcher, get_metadata, trim_prefix
-from .file_utility import write_filelist
+from src.utils.file.file_meta import get_metadata
+from src.utils.general.data_manipulation import batcher
+from src.data_processing.file_io.readers import find_filetype
+from src.data_processing.file_io.writers import write_filelist, trim_prefix
+from src.data_processing.vcf.read import import_and_annotate_vcf_batch, load_db_batch, load_mt
+from src.data_processing.vcf.transform import reduce_to_2d_table, create_frequency_bins
+from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows, merge_matrix_tables_cols, \
+    create_related_samples_table
+from src.data_processing.pca.analysis import pca_graphing
 
-unique = hash(datetime.datetime.utcnow())
+
+
+
+unique = hash(datetime.datetime.utcnow()) #TODO: delete, variable not used
 N_BATCH = 50
 
 def handle_quit():
@@ -42,12 +46,10 @@ def find_elements(dictionary, x, pos=0, sep=None):
 def write_frequency_table(result, args, name, extra_tag=""):
     table_path = hail.utils.timestamp_path(os.path.join(args.dest, "{0}_{1}.tsv".format(name,extra_tag)))
     if not Path(table_path).exists() or args.overwrite:
-
         result.to_csv(table_path)
         hail.utils.info("OLIGO: wrote output to {0}".format(table_path))
     else:
         hail.utils.info("OLIGO: skipped writing output:\n{0}.".format(result))
-
 
 class CommandHandler:
     def __init__(self, args):
@@ -216,4 +218,4 @@ class CommandHandler:
         """
         This function will graph PCA relatedness from a relatedness table. Unused.
         """
-        utils.pca_graphing(self.args.pca, self.args.pca_tsv)
+        pca_graphing(self.args.pca, self.args.pca_tsv)
