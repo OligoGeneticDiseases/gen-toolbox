@@ -1,5 +1,5 @@
 # Oligogenicity
-The gen-toolbox-dev project is a comprehensive tool for collating large numbers of VCF files of unique samples, annotating variants, and creating variant frequency tables in a pipeline fashion. The project is designed to run locally on a large server and is directed by Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine. This work was supported by the Estonian Research Council grant PSG774.
+The gen-toolbox project is a comprehensive tool for collating large numbers of VCF files of unique samples, annotating variants, and creating variant frequency tables in a pipeline fashion. The project is designed to run locally on a large server and is directed by Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine. This work was supported by the Estonian Research Council grant PSG774.
 
 This repository contains tools for genomic data processing and analysis. It provides a command-line interface (CLI) for executing various commands related to genomic data.
 
