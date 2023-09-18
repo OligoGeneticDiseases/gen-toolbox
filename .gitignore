@@ -162,4 +162,6 @@ cython_debug/
 *.iml
 *.ipr
 *.iws
+src/.DS_Store
+.DS_Store
 
