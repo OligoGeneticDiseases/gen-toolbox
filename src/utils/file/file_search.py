@@ -1,8 +1,10 @@
 import os
+
 try:
     from scandir import walk
 except ImportError:
     from os import walk
+
 
 def find_filetype(dir, filetype, findunique=False, verbose=True):
     """
@@ -19,7 +21,7 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
     duplicates = 0
 
     unique_files = list(())
-    for (dirpath, dirnames, files) in os.walk(dir):
+    for dirpath, dirnames, files in os.walk(dir):
         for name in files:
             if name.endswith(filetype):
                 if name not in map(lambda x: x[0], unique_files):
@@ -29,7 +31,7 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
                     if verbose:
                         print("Duplicate filename {0}".format(name))
                     if not findunique:
-                        # Append anyway if findunique is set to False
+                        # Append anyway if find unique is set to False
                         unique_files.append((name, os.path.join(dirpath, name)))
     print("Duplicate filenames: {0}".format(duplicates))
     return unique_files

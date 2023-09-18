@@ -9,6 +9,7 @@ def trim_prefix(filename, seperator="."):
     prefix_clean = filename.rsplit(".")[0].rsplit("_")[0]
     return prefix_clean
 
+
 def eval_regex(text, regex):
     """
     Will return the parsed string with the defined regex rule
