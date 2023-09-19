@@ -5,7 +5,8 @@ import hail as hl
 from hail.utils import info
 
 
-#Content: Functions specifically related to genomic operations using Hail (from hail_methods.py).
+# Content: Functions specifically related to genomic operations using Hail (from hail_methods.py).
+
 
 def create_related_samples_table(mt: hl.MatrixTable) -> hl.Table:
     """
@@ -15,20 +16,26 @@ def create_related_samples_table(mt: hl.MatrixTable) -> hl.Table:
     :return: Relatedness table
     """
     hl.utils.info("Reducing input.")
-    test_intervals = ['2']
+    test_intervals = ["2"]
     mt = hl.filter_intervals(
         mt,
-        [hl.parse_locus_interval(x, )
-         for x in test_intervals])
+        [
+            hl.parse_locus_interval(
+                x,
+            )
+            for x in test_intervals
+        ],
+    )
     mt = mt.filter_rows(hl.len(mt.alleles) > 2, keep=False)
     hl.utils.info("Starting relatedness analysis using KING!")
     mt = mt.unfilter_entries()
     king_table = hl.king(mt.GT)
-    #duplicates = king_table.filter_entries(king_table.phi > 0.4, keep=True)  # Find samples that are similar
-    #duplicates.key_cols_by()
-    #duplicates.show()
+    # duplicates = king_table.filter_entries(king_table.phi > 0.4, keep=True)  # Find samples that are similar
+    # duplicates.key_cols_by()
+    # duplicates.show()
     hl.utils.info("Completed KING!")
     return king_table
+
 
 def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTable:
     """
@@ -51,7 +58,9 @@ def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTa
             info(
                 f"multi_way_union_mts: stage {stage} / job {i}: merging {len(to_merge)} inputs"
             )
-            merged = hl.Table.multi_way_zip_join(to_merge, "__entries", "__cols", "__rows")
+            merged = hl.Table.multi_way_zip_join(
+                to_merge, "__entries", "__cols", "__rows"
+            )
             merged = merged.annotate(
                 __entries=hl.flatten(
                     hl.range(hl.len(merged.__entries)).map(
@@ -67,11 +76,17 @@ def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTa
                 )
             )
             merged = merged.annotate_globals(
-                __cols=hl.flatten(merged.__cols.map(lambda x: x.__cols)))
+                __cols=hl.flatten(merged.__cols.map(lambda x: x.__cols))
+            )
             merged = merged.annotate_rows(
-                __rows=hl.flatten(merged.__rows.map(lambda x: x.__rows)))
+                __rows=hl.flatten(merged.__rows.map(lambda x: x.__rows))
+            )
 
-            print(merged.aggregate((hl.agg.stats(hl.len(merged.__entries)), hl.len(merged.__cols))))
+            print(
+                merged.aggregate(
+                    (hl.agg.stats(hl.len(merged.__entries)), hl.len(merged.__cols))
+                )
+            )
             next_stage.append(
                 merged.checkpoint(
                     os.path.join(tmp_dir, f"stage_{stage}_job_{i}.ht"), overwrite=True
@@ -87,6 +102,7 @@ def multi_way_union_mts(mts: list, tmp_dir: str, chunk_size: int) -> hl.MatrixTa
         .unfilter_entries()
     )
 
+
 def merge_matrix_tables_rows(matrix_tables, phenotype=None):
     """
     Merge all matrix tables into one big matrix table with the same header and the same set of samples.
@@ -99,11 +115,19 @@ def merge_matrix_tables_rows(matrix_tables, phenotype=None):
     filtered_mts = matrix_tables
 
     # do some downfiltering to select only important entries for merging, INFO fields will contain the full data anyway
-    combined_mt = matrix_tables[0].select_entries(matrix_tables[0].AD,  matrix_tables[0].DP,
-                                                  matrix_tables[0].GT, matrix_tables[0].VF, matrix_tables[0].AC)
-    combined_mt = combined_mt.select_rows(combined_mt.impact,
-                                          combined_mt.gene, combined_mt.HGNC_ID, combined_mt.MAX_AF)
-    if len(matrix_tables) > 1: #  If there is only one match, don't combine any other tables.
+    combined_mt = matrix_tables[0].select_entries(
+        matrix_tables[0].AD,
+        matrix_tables[0].DP,
+        matrix_tables[0].GT,
+        matrix_tables[0].VF,
+        matrix_tables[0].AC,
+    )
+    combined_mt = combined_mt.select_rows(
+        combined_mt.impact, combined_mt.gene, combined_mt.HGNC_ID, combined_mt.MAX_AF
+    )
+    if (
+        len(matrix_tables) > 1
+    ):  #  If there is only one match, don't combine any other tables.
         for mt in matrix_tables[1:]:
             mt_prefix = mt.cols
             mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
@@ -121,8 +145,13 @@ def merge_matrix_tables_cols(matrix_tables):
     """
 
     # do some downfiltering to select only important entries for merging, INFO fields will contain the full data anyway
-    combined_mt = matrix_tables[0].select_entries(matrix_tables[0].AD,  matrix_tables[0].DP,
-                                                   matrix_tables[0].GT, matrix_tables[0].VF, matrix_tables[0].AC)
+    combined_mt = matrix_tables[0].select_entries(
+        matrix_tables[0].AD,
+        matrix_tables[0].DP,
+        matrix_tables[0].GT,
+        matrix_tables[0].VF,
+        matrix_tables[0].AC,
+    )
     for mt in matrix_tables[1:]:
         mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
         combined_mt = combined_mt.union_cols(mt, row_join_type="outer")

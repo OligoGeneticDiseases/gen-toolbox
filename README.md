@@ -12,18 +12,13 @@ The concept of this project is to collate large numbers of VCF files of unique s
 - Hail: A Python library for scalable genomic data analysis.
 - Variant Effect Predictor (VEP): A tool for annotating and predicting the effects of genetic variants.
 
-
-## Libraries Used
-
-- Hail: A Python library for scalable genomic data analysis.
-- Variant Effect Predictor (VEP): A tool for annotating and predicting the effects of genetic variants.
-
 ## File Tree
 
 ```
 ├── main.py
 └── src
     ├── cli
+    │   ├── command_setup.py
     │   ├── command_factory.py
     │   └── command_methods.py
     ├── config
@@ -56,6 +51,7 @@ The concept of this project is to collate large numbers of VCF files of unique s
 
 - `main.py`: Main entry point of the application. Initializes the CLI and executes the appropriate command based on user input.
 - `src/cli/command_factory.py`: Defines the `CommandFactory` class for creating and executing CLI commands.
+- `src/cli/command_setup.py.py`: Sets up the argument parser and initializes the Spark configuration. 
 - `src/cli/command_methods.py`: Defines methods for available CLI commands.
 - `src/config/gene_config.json`: Contains configuration settings for genes.
 - `src/config/settings.py`: Defines the `Settings` class for managing configuration settings.
@@ -88,4 +84,3 @@ The concept of this project is to collate large numbers of VCF files of unique s
 6. Activate virtual environment by using command `{path-to-your-environment}/bin/activate `
 7. Install requirements by command `pip install -r requirements.txt`
 8. Run: `python3 main.py --help`
-

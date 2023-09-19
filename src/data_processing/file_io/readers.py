@@ -6,7 +6,8 @@ try:
 except ImportError:
     from os import walk
 
-duplicates = 0 #TODO: define as global?
+duplicates = 0  # TODO: define as global?
+
 
 def find_file(main_dir, filename):
     """
@@ -17,7 +18,7 @@ def find_file(main_dir, filename):
     """
     assert os.path.exists(main_dir), "Path {} does not exist.".format(main_dir)
 
-    for (dirpath, dirnames, files) in walk(main_dir):
+    for dirpath, dirnames, files in walk(main_dir):
         for name in files:
             if name == filename:
                 return name, os.path.join(dirpath, name)
@@ -39,7 +40,7 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
     duplicates = 0
 
     unique_files = list(())
-    for (dirpath, dirnames, files) in walk(dir):
+    for dirpath, dirnames, files in walk(dir):
         for name in files:
             if name.endswith(filetype):
                 if name not in map(lambda x: x[0], unique_files):
@@ -54,12 +55,14 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
     print("Duplicate filenames: {0}".format(duplicates))
     return unique_files
 
+
 def find_vcfs(dir):
-    return find_filetype(dir, '.vcf')
+    return find_filetype(dir, ".vcf")
 
 
 def find_bams(dir):
-    return find_filetype(dir, '.bam')
+    return find_filetype(dir, ".bam")
+
 
 def find_type(dir, extension):
     return find_filetype(dir, extension)
@@ -84,9 +87,6 @@ def find_prefixes(dir, extension):
     return clean_prefixes
 
 
-
-
-
 def file_len(fname):
     if os.path.exists(fname):
         with open(fname) as f:
@@ -106,8 +106,10 @@ def count_unique_names(infile, col, seperator="\t"):
                 if not col > len(cols):
                     names.append(cols[col])
                 else:
-                    raise IndexError("Is your seperator correct? "
-                                     "There weren't enough columns "
-                                     "after splitting the line #{0}\n{1}!".format(i, l))
+                    raise IndexError(
+                        "Is your seperator correct? "
+                        "There weren't enough columns "
+                        "after splitting the line #{0}\n{1}!".format(i, l)
+                    )
     unique = set(names)
     return len(unique)

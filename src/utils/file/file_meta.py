@@ -6,6 +6,7 @@ import hail.utils
 
 from src.utils.general.string_operations import trim_prefix
 
+
 def get_metadata(metadata_path):
     p = Path(metadata_path)
     metadata_dict = dict()
@@ -20,6 +21,9 @@ def get_metadata(metadata_path):
                 else:
                     metadata_dict[ecode] = ["NA", "NA"]
             else:
-                hail.utils.warning("Metadata: found duplicate key {0} for line {1}. Existing object {2}."
-                                 .format(ecode, s, (ecode, metadata_dict[ecode])))
+                hail.utils.warning(
+                    "Metadata: found duplicate key {0} for line {1}. Existing object {2}.".format(
+                        ecode, s, (ecode, metadata_dict[ecode])
+                    )
+                )
     return metadata_dict
