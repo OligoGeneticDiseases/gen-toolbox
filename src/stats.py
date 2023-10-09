@@ -74,16 +74,17 @@ def permutation_analysis(
     # (100000) would not show fractions < 1. In addition, we want to avoid division by 0.
     # Finally normalise for the cohort size i.e. 1000 samples vs 1500 samples etc.
     # TODO: Figure out if there are any extreme ratios that result from such normalisation
-
+    expected_ratio = case_count / control_count
     df_case.reset_index(drop=True, inplace=True)
     df_control.reset_index(drop=True, inplace=True)
     columns_to_add = df_case.columns[1:]
-    df_case[columns_to_add] = df_case[columns_to_add].multiply(1000)
-    df_case[columns_to_add] = df_case[columns_to_add].add(0.00001)
-    df_case[columns_to_add] = df_case[columns_to_add].divide(case_count)
-    df_control[columns_to_add] = df_control[columns_to_add].multiply(1000)
-    df_control[columns_to_add] = df_control[columns_to_add].add(0.00001)
-    df_control[columns_to_add] = df_control[columns_to_add].divide(control_count)
+    #df_case[columns_to_add] = df_case[columns_to_add].add(0.01)
+    #df_case[columns_to_add] = df_case[columns_to_add].multiply(100)
+    #df_case[columns_to_add] = df_case[columns_to_add].multiply(expected_ratio)
+    #df_control[columns_to_add] = df_control[columns_to_add].add(0.01)
+    #df_control[columns_to_add] = df_control[columns_to_add].multiply(100)
+    #df_control[columns_to_add] = df_control[columns_to_add].multiply(expected_ratio)
+    #df_control[columns_to_add] = df_control[columns_to_add].divide(control_count)
 
     if intersect_genes is not None:
         # Filter out empty genes and keep only the intersecting genes in both dataframes
@@ -99,10 +100,12 @@ def permutation_analysis(
     # Calculate the mean of the case and control dataframes
     df_case_mean = df_case.mean()
     df_control_mean = df_control.mean()
-
+    fraction_results_1 = pd.DataFrame(columns=df_case.columns[1:].tolist())
     fraction_results_2 = pd.DataFrame(columns=df_case.columns[1:].tolist())
     num_columns = df_case.shape[1]
 
+
+    print("Expected ratio cases / controls: {0}, log2 {1}".format(expected_ratio, np.log2(expected_ratio)))
     # -------------------------------
     # Loop through each frequency column
     # TODO: This secion has been reverted from the vectorized solution to a loop, try and vectorize
@@ -119,9 +122,13 @@ def permutation_analysis(
             total_variants_control = df_control.iloc[indices, j].sum()
 
             ratio = np.NaN
-            if total_variants_control >= 1 and total_variants_case >= 1:
-                ratio = total_variants_case / total_variants_control
-            ratios.append(ratio)
+            #if total_variants_control > combination_length*expected_ratio and total_variants_case > combination_length:
+            if total_variants_control > 1 and total_variants_case > 1:
+                ratio = np.divide(total_variants_case, total_variants_control)
+                if np.log2(ratio) > 10:
+                    #fraction_results_1[frequency_column].apply(ratio, df_case.iloc[indices, 0].values[:])
+                    print(frequency_column, ratio, df_case.iloc[indices, j].values[:])
+            ratios.append(ratio)  # Store the ratio value and the indicies that were impactful for that ratio
             # Set NaN values for iterations where the sum of total variants is zero for either case or control groups
             # ratio[np.logical_or(total_variants_case == 0, total_variants_control == 0)] = np.NaN
 
@@ -130,7 +137,8 @@ def permutation_analysis(
 
         # Print the fraction results
     print(fraction_results_2)
-    print("Expected ratio cases / controls: {0}".format(case_count / control_count))
+
+
 
     # -------------plotting----------------------
     # This section will plot the results, removed the dual-plot graph, it did not show any new relevant information.
@@ -148,27 +156,26 @@ def permutation_analysis(
 
     i = 0
     for frequency_column in fraction_results_2.columns:
-        # Average sample normalization enrichment ratios for "likely impactful" and "likely non-impactful" genes
-        q_avg = np.divide(
-            np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]),
-            np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]),
-        )
-        q_avg_control_group = np.divide(
-            np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]),
-            np.sum(
-                df_control[df_control.gene.isin(neg_control_genes)][frequency_column]
-            ),
-        )
-        print(
-            "Impact group (av-norm. ): {0}, case_genes_enrichment: {1}, control_genes_enrichment: {2}".format(
-                frequency_column, q_avg, q_avg_control_group
-            )
-        )
 
-        fraction_results_2[frequency_column + "_log2"] = np.log2(
-            fraction_results_2[frequency_column].dropna()
-        )
+        #x = fraction_results_2[frequency_column + "_log2"]
+        fraction_results_2[frequency_column].dropna(how="any", inplace=True)
+
         if fraction_results_2[frequency_column].any():
+            # Average sample normalization enrichment ratios for "likely impactful" and "likely non-impactful" genes
+            q_avg = np.divide(
+                np.sum(df_case[df_case.gene.isin(rv_genes)][frequency_column]),
+                np.sum(df_control[df_control.gene.isin(rv_genes)][frequency_column]),)
+            q_avg_control_group = np.divide(
+                np.sum(df_case[df_case.gene.isin(neg_control_genes)][frequency_column]),
+                np.sum(
+                    df_control[df_control.gene.isin(neg_control_genes)][frequency_column]),)
+            print(
+                "Impact group (av-norm. ): {0}, case_genes_enrichment: {1}, control_genes_enrichment: {2}".format(
+                    frequency_column, q_avg, q_avg_control_group
+                )
+            )
+            fraction_results_2[frequency_column + "_log2"] = np.log2(
+            fraction_results_2[frequency_column])
             # mu, std = sp.norm.fit(fraction_results[frequency + "_log"].dropna())
             xmin, xmax = (
                 fraction_results_2[frequency_column + "_log2"].dropna().min(),
@@ -181,12 +188,12 @@ def permutation_analysis(
 
             # Left sided plot for mean-normalized enrichment ratios
             axs[i].hist(
-                fraction_results_2[frequency_column + "_log2"],
+                fraction_results_2[frequency_column+ "_log2"],
                 density=False,
                 log=False,
                 histtype="stepfilled",
                 stacked=False,
-                bins=500,
+                bins=1000,
             )
             axs[i].set_title(
                 "{0}: data_mean={1} case={2} control={3}".format(
@@ -232,10 +239,10 @@ if __name__ == "__main__":
         "Analyse", help="Find the Monte Carlo permutation values for a given input."
     )
     analyse.add_argument(
-        "--input1", "-i", type=validate_file, help="Input file path", required=True
+        "--input1", "-i", type=validate_file, help="Input file path cases", required=True
     )
     analyse.add_argument(
-        "--input2", "-i2", type=validate_file, help="Input file path", required=True
+        "--input2", "-i2", type=validate_file, help="Input file path control", required=True
     )
     analyse.add_argument(
         "--gene_config",
@@ -251,19 +258,31 @@ if __name__ == "__main__":
         "--iterations", "-n", type=int, help="Total permutation iterations to be ran. "
     )
 
+    analyse.add_argument(
+        "--csv", action="store_true"
+    )
+
     args = parser.parse_args()
 
     if args.command == "Analyse":
         start = datetime.datetime.now()
 
         config = load_gene_config(args.gene_config)
-        intersect_genes = config["intersect_genes"]
+        if args.csv:
+            intersect_genes = config["intersect_genes_tso"]
+            normal_df = pd.read_csv(args.input1, sep=",", header=0)
+            rv_df = pd.read_csv(args.input2, sep=",", header=0)
+        else:
+            intersect_genes = config["intersect_genes_tshc"]
+            normal_df = pd.read_table(args.input1, sep="\t", header=0)
+            rv_df = pd.read_table(args.input2, sep="\t", header=0)
         rv_genes = config["rv_genes"]
         neg_control_genes = config["neg_control_genes"]
 
-        normal_df = pd.read_csv(args.input1, sep=",", header=0)
+
         normal_df.columns.values[0] = "gene"
-        rv_df = pd.read_csv(args.input2, sep=",", header=0)
+
+
         rv_df.columns.values[0] = "gene"
         outlines = []
 
@@ -278,7 +297,7 @@ if __name__ == "__main__":
             iterations=args.iterations,
             rv_genes=rv_genes,
             neg_control_genes=neg_control_genes,
-            combination_length=20,
+            combination_length=5,
         )
         # TODO: store the output
         if args.out is None and len(outlines) > 0:

@@ -15,7 +15,7 @@ from src.data_processing.pca.analysis import pca_graphing
 
 
 unique = hash(datetime.datetime.utcnow())  # TODO: delete, variable not used
-N_BATCH = 50
+N_BATCH = 75
 
 
 def handle_quit():
@@ -44,7 +44,7 @@ def find_elements(dictionary, x, pos=0, sep=None):
 
 def write_frequency_table(result, args, name, extra_tag=""):
     table_path = hail.utils.timestamp_path(
-        os.path.join(args.dest, "{0}_{1}.tsv".format(name, extra_tag))
+        os.path.join(args.dest, "{0}_{1}.csv".format(name, extra_tag))
     )
     if not Path(table_path).exists() or args.overwrite:
         result.to_csv(table_path)
@@ -83,7 +83,7 @@ class CommandHandler:
             if path.is_file() and path.suffix == ".vcf":
                 vcfs.append(path)
             else:
-                vcfs.extend(path.glob("*.vcf"))
+                vcfs.extend(path.rglob("*.vcf"))
         metadata = get_metadata(self.args.globals)
         assert metadata is not None
         if self.args.phenotype is not None:
@@ -97,10 +97,13 @@ class CommandHandler:
                     filtered_vcfs.append(path)
             assert (
                 len(filtered_vcfs) > 0
-            )  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
+            ), "No matches found with given phenotype {0}, quitting.".format(self.args.phenotype)  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
             anti_match = list(set(vcfs) - set(filtered_vcfs))
             match_and_anti_match.append(filtered_vcfs)
             match_and_anti_match.append(anti_match)
+            hail.utils.info("Found {0} matches for phenotype {1}. Anti-matches: {2}".format(len(filtered_vcfs),
+                                                                                            self.args.phenotype,
+                                                                                            len(anti_match)))
         else:
             match_and_anti_match.append(vcfs)  # Append all
 
@@ -109,6 +112,7 @@ class CommandHandler:
             n_batches = int(len(positive_or_negative_set) / N_BATCH)
             batch_matrix_tables = []
             set_tag = "positive" if k == 0 else "negative"
+            set_tag = "{0}_".format(self.args.phenotype) + set_tag
 
             for i, batch in enumerate(batcher(positive_or_negative_set, N_BATCH)):
                 matrix_tables = import_and_annotate_vcf_batch(
@@ -126,7 +130,7 @@ class CommandHandler:
                             )
                         )
                         .__str__()
-                    )  # Write MatrixTable to disk
+                    )  # Write MatrixTable to disk TODO: log values don't make sense after a certain number of batches i.e. batch 9/8
                     info(
                         "Wrote batch {0}/{1} onto disk with {2} subelements.".format(
                             i + 1, n_batches, N_BATCH
@@ -154,8 +158,8 @@ class CommandHandler:
             write_frequency_table(
                 result,
                 self.args,
-                name="frequency_table_{0}_{1}".format(
-                    len(positive_or_negative_set), self.args.phenotype
+                name="frequency_table_{0}".format(
+                    len(positive_or_negative_set)
                 ),
                 extra_tag=set_tag,
             )
@@ -238,10 +242,11 @@ class CommandHandler:
         write_frequency_table(
             result,
             self.args,
-            name="frequency_table_{0}_{1}".format(steps, self.args.phenotype),
+            name="frequency_table_{0}".format(steps),
             extra_tag="negative",
         )
         hail.utils.info("OLIGO: Finished LoadDB command.")
+        handle_quit()
 
     def handle_check_relatedness(self):
         """
