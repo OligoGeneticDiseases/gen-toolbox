@@ -1,4 +1,6 @@
 import sys
+import traceback
+
 from src.cli.command_setup import setup_parser, command_handlers, setup_spark_config
 
 
@@ -19,9 +21,13 @@ def main():
             print(f"Unknown command: {command}")
             sys.exit(1)
 
+    except AssertionError:
+        traceback.print_exc()
+        sys.exit(1)
     except Exception as e:
         print("ERROR: " + str(e))
         sys.exit(1)
+
 
 
 if __name__ == "__main__":

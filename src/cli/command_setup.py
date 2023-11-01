@@ -1,5 +1,9 @@
 import argparse
-from pyspark import SparkContext
+import json
+from pathlib import Path
+
+import hail as hl
+from pyspark import SparkContext, SparkConf
 from src.cli.command_factory import CommandFactory
 from src.cli.command_methods import CommandHandler
 
@@ -20,7 +24,8 @@ def setup_parser():
 
 
 def setup_spark_config(args):
-    with open("../config/spark_conf.json", "r") as f:
+    path = Path(__file__).parent / "../config/spark_conf.json"
+    with path.open() as f:
         conf_data = json.load(f)
 
     conf_data["spark.jars"] = conf_data["spark.jars"].format(hail_home=hail_home)
