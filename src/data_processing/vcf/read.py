@@ -60,7 +60,10 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
                 for x in interval
             ],
         )
-    mt = mt.filter_rows(mt.alleles[1] != "*")  # Filter star alleles as these break VEP
+    # mt.alleles[1] != "*" have been replaced with (hl.len(mt.alleles) > 1) & (mt.alleles[1] != "*")
+    # hl.len(mt.alleles) > 1) will filter out nucleotide bases without mutation
+    # No need to handle string characters other than "*" like "." as hl.import_vcf does not read them in records
+    mt = mt.filter_rows((hl.len(mt.alleles) > 1) & (mt.alleles[1] != "*"))  # Filter star alleles as these break VEP
     if annotate:
         mt = hl.vep(mt, "./src/config/vep_settings.json")
         mt = mt.annotate_rows(

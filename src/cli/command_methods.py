@@ -80,10 +80,11 @@ class CommandHandler:
         #  If phenotype is set, write two tables of both phenotype match and the opposite set
         match_and_anti_match = list()
         for path in full_paths:
-            if path.is_file() and path.suffix == ".vcf":
+            if path.is_file() and (path.suffix in {".vcf", ".gvcf"}):
                 vcfs.append(path)
             else:
                 vcfs.extend(path.rglob("*.vcf"))
+                vcfs.extend(path.rglob("*.gvcf"))
         metadata = get_metadata(self.args.globals)
         assert metadata is not None
         if self.args.phenotype is not None:
@@ -256,10 +257,11 @@ class CommandHandler:
         mt_paths = list()
         full_paths = [Path(path) for path in self.args.file]
         for path in full_paths:
-            if path.is_file() and path.suffix == ".vcf":
+            if path.is_file() and (path.suffix in {".vcf", ".gvcf"}): # gvcf files will have .g.vcf, .genome.vcf which wil be captured by .vcf only
                 mt_paths.append(path)
             else:
                 mt_paths.extend(path.glob("*.vcf"))
+                mt_paths.extend(path.glob("*.gvcf"))
 
         batch_matrix_tables = []
         # don't annotate, downfilter to chr2
@@ -285,3 +287,4 @@ class CommandHandler:
         This function will graph PCA relatedness from a relatedness table. Unused.
         """
         pca_graphing(self.args.pca, self.args.pca_tsv)
+        handle_quit()
