@@ -287,4 +287,3 @@ class CommandHandler:
         This function will graph PCA relatedness from a relatedness table. Unused.
         """
         pca_graphing(self.args.pca, self.args.pca_tsv)
-        handle_quit()
