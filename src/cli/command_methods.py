@@ -8,7 +8,7 @@ from src.utils.file.file_meta import get_metadata
 from src.utils.general.data_manipulation import batcher
 from src.data_processing.file_io.readers import find_filetype
 from src.data_processing.file_io.writers import write_filelist, trim_prefix
-from src.data_processing.vcf.read import import_and_annotate_vcf_batch, load_db_batch, load_mt
+from src.data_processing.vcf.read import import_and_annotate_vcf_batch_read, import_and_annotate_vcf_batch, load_db_batch, load_mt
 from src.data_processing.vcf.transform import reduce_to_2d_table, create_frequency_bins
 from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows, merge_matrix_tables_cols, create_related_samples_table
 from src.data_processing.pca.analysis import pca_graphing
@@ -116,12 +116,13 @@ class CommandHandler:
             set_tag = "{0}_".format(self.args.phenotype) + set_tag
 
             for i, batch in enumerate(batcher(positive_or_negative_set, N_BATCH)):
-                matrix_tables = import_and_annotate_vcf_batch(
+                # matrix_tables replaced with batch_combined_mt
+                batch_combined_mt = import_and_annotate_vcf_batch_read(
                     batch, metadata=metadata, annotate=self.args.annotate
                 )  # hail.import_vcf() and hail.VEP() within this function
-                batch_combined_mt = merge_matrix_tables_rows(
-                    matrix_tables, self.args.phenotype
-                )  # Merge batch of matrix tables into one
+                # batch_combined_mt = merge_matrix_tables_rows(
+                #     matrix_tables, self.args.phenotype
+                # )  # Merge batch of matrix tables into one
                 if self.args.write:
                     batch_combined_mt.write(
                         Path(self.args.dest)

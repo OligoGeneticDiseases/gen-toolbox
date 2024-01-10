@@ -115,7 +115,24 @@ def merge_matrix_tables_rows(matrix_tables, phenotype=None):
     filtered_mts = matrix_tables
 
     # do some downfiltering to select only important entries for merging, INFO fields will contain the full data anyway
-    combined_mt = hl.MatrixTable.union_rows(*matrix_tables,_check_cols=False)
+    combined_mt = matrix_tables[0].select_entries(
+        matrix_tables[0].AD,
+        matrix_tables[0].DP,
+        matrix_tables[0].GT,
+        matrix_tables[0].VF,
+        matrix_tables[0].AC,
+    )
+    combined_mt = combined_mt.select_rows(
+        combined_mt.impact, combined_mt.gene, combined_mt.HGNC_ID, combined_mt.MAX_AF
+    )
+    if (
+        len(matrix_tables) > 1
+    ):  #  If there is only one match, don't combine any other tables.
+        for mt in matrix_tables[1:]:
+            mt_prefix = mt.cols
+            mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
+            mt = mt.select_rows(mt.impact, mt.gene, mt.HGNC_ID, mt.MAX_AF)
+            combined_mt = combined_mt.union_rows(mt, _check_cols=False)
     return combined_mt
 
 
