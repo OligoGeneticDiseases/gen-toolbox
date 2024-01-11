@@ -46,7 +46,7 @@ class CommandFactory:
         read_vcfs.add_argument(
             "-f",
             "--file",
-            help="The VCF file(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+            help="The VCF/GVCF file(s) [comma seperated], .txt/.list of VCF/GVCF paths to be parsed or folder containing VCF "
             "files.",
             nargs="+",
             required=True,
@@ -98,7 +98,7 @@ class CommandFactory:
         )
         read_vcfs.add_argument(
             "--write",
-            help="Write the unioned VCF MatrixTable to disk for later loading and handling.",
+            help="Write the unioned VCF/GVCF MatrixTable to disk for later loading and handling.",
             default=False,
             action="store_true",
         )
@@ -119,7 +119,7 @@ class CommandFactory:
         loaddb.add_argument(
             "-f",
             "--file",
-            help="The VCF MatrixTable folder(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+            help="The VCF/GVCF MatrixTable folder(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
             "files.",
             nargs="+",
             required=True,
@@ -166,7 +166,7 @@ class CommandFactory:
         )
         loaddb.add_argument(
             "--write",
-            help="Write the unioned VCF MatrixTable to disk for later loading and handling.",
+            help="Write the unioned VCF/GVCF MatrixTable to disk for later loading and handling.",
             default=False,
             action="store_true",
         )
@@ -178,7 +178,7 @@ class CommandFactory:
         check_relatedness.add_argument(
             "-f",
             "--file",
-            help="The VCF file(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+            help="The VCF/GVCF file(s) [comma seperated], .txt/.list of VCF/GVCF paths to be parsed or folder containing VCF/GVCF "
             "files.",
             nargs="+",
             required=True,
