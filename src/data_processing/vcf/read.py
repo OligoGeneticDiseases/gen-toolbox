@@ -19,6 +19,7 @@ def load_mt(mt_path):
 
 
 def import_and_annotate_vcf_batch_read(vcfs, metadata=None, annotate=True, interval=None):
+# function for avoiding conflicts with columns merging in check command_factory.check_relatedness command
     batch = []
     for vcf in vcfs:
         batch.append(
