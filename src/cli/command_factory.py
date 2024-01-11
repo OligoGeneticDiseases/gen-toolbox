@@ -2,7 +2,6 @@ import os
 
 
 class CommandFactory:
-
     def __init__(self, parser):
         self.find_type = None
         self.parser = parser

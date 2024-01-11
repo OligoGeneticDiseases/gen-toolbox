@@ -8,9 +8,18 @@ from src.utils.file.file_meta import get_metadata
 from src.utils.general.data_manipulation import batcher
 from src.data_processing.file_io.readers import find_filetype
 from src.data_processing.file_io.writers import write_filelist, trim_prefix
-from src.data_processing.vcf.read import import_and_annotate_vcf_batch_read, import_and_annotate_vcf_batch, load_db_batch, load_mt
+from src.data_processing.vcf.read import (
+    import_and_annotate_vcf_batch_read,
+    import_and_annotate_vcf_batch,
+    load_db_batch,
+    load_mt,
+)
 from src.data_processing.vcf.transform import reduce_to_2d_table, create_frequency_bins
-from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows, merge_matrix_tables_cols, create_related_samples_table
+from src.data_processing.hail.genomic_operations import (
+    merge_matrix_tables_rows,
+    merge_matrix_tables_cols,
+    create_related_samples_table,
+)
 from src.data_processing.pca.analysis import pca_graphing
 
 
@@ -54,7 +63,6 @@ def write_frequency_table(result, args, name, extra_tag=""):
 
 
 class CommandHandler:
-
     def __init__(self, args):
         self.args = args
 
@@ -98,13 +106,17 @@ class CommandHandler:
                     filtered_vcfs.append(path)
             assert (
                 len(filtered_vcfs) > 0
-            ), "No matches found with given phenotype {0}, quitting.".format(self.args.phenotype)  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
+            ), "No matches found with given phenotype {0}, quitting.".format(
+                self.args.phenotype
+            )  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
             anti_match = list(set(vcfs) - set(filtered_vcfs))
             match_and_anti_match.append(filtered_vcfs)
             match_and_anti_match.append(anti_match)
-            hail.utils.info("Found {0} matches for phenotype {1}. Anti-matches: {2}".format(len(filtered_vcfs),
-                                                                                            self.args.phenotype,
-                                                                                            len(anti_match)))
+            hail.utils.info(
+                "Found {0} matches for phenotype {1}. Anti-matches: {2}".format(
+                    len(filtered_vcfs), self.args.phenotype, len(anti_match)
+                )
+            )
         else:
             match_and_anti_match.append(vcfs)  # Append all
 
@@ -160,9 +172,7 @@ class CommandHandler:
             write_frequency_table(
                 result,
                 self.args,
-                name="frequency_table_{0}".format(
-                    len(positive_or_negative_set)
-                ),
+                name="frequency_table_{0}".format(len(positive_or_negative_set)),
                 extra_tag=set_tag,
             )
         handle_quit()
@@ -258,7 +268,9 @@ class CommandHandler:
         mt_paths = list()
         full_paths = [Path(path) for path in self.args.file]
         for path in full_paths:
-            if path.is_file() and (path.suffix in {".vcf", ".gvcf"}): # gvcf files will have .g.vcf, .genome.vcf which wil be captured by .vcf only
+            if path.is_file() and (
+                path.suffix in {".vcf", ".gvcf"}
+            ):  # gvcf files will have .g.vcf, .genome.vcf which wil be captured by .vcf only
                 mt_paths.append(path)
             else:
                 mt_paths.extend(path.glob("*.vcf"))

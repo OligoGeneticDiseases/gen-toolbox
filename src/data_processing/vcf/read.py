@@ -18,8 +18,10 @@ def load_mt(mt_path):
     return hl.read_matrix_table(mt_path)
 
 
-def import_and_annotate_vcf_batch_read(vcfs, metadata=None, annotate=True, interval=None):
-# function for avoiding conflicts with columns merging in check command_factory.check_relatedness command
+def import_and_annotate_vcf_batch_read(
+    vcfs, metadata=None, annotate=True, interval=None
+):
+    # function for avoiding conflicts with columns merging in check command_factory.check_relatedness command
     batch = []
     for vcf in vcfs:
         batch.append(
@@ -36,14 +38,20 @@ def import_and_annotate_vcf_batch_read(vcfs, metadata=None, annotate=True, inter
         "PL": hl.tarray(hl.tint32),
         "AD": hl.tarray(hl.tint32),
         "GT": hl.tcall,
-        "DP": hl.tint32
+        "DP": hl.tint32,
     }
     batch = [mt.annotate_rows(info=mt.row.info.select(*row_common)) for mt in batch]
     batch = [mt.select_entries(*entry_common) for mt in batch]
-    batch = [mt.annotate_entries(**{
-        field: hl.or_else(mt[field], hl.missing(fields_to_convert[field]))
-        for field in fields_to_convert if field in entry_common
-    }) for mt in batch]
+    batch = [
+        mt.annotate_entries(
+            **{
+                field: hl.or_else(mt[field], hl.missing(fields_to_convert[field]))
+                for field in fields_to_convert
+                if field in entry_common
+            }
+        )
+        for mt in batch
+    ]
     mt = hl.MatrixTable.union_rows(*batch, _check_cols=False)
     mt = annotation(mt, metadata=metadata, annotate=annotate)
     return mt
@@ -123,7 +131,9 @@ def import_vcf(vcf_path, metadata=None, annotate=True, interval=None):
     # mt.alleles[1] != "*" have been replaced with (hl.len(mt.alleles) > 1) & (mt.alleles[1] != "*")
     # hl.len(mt.alleles) > 1) will filter out nucleotide bases without mutation
     # No need to handle string characters other than "*" like "." as hl.import_vcf does not read them in records
-    mt = mt.filter_rows((hl.len(mt.alleles) > 1) & (mt.alleles[1] != "*"))  # Filter star alleles as these break VEP
+    mt = mt.filter_rows(
+        (hl.len(mt.alleles) > 1) & (mt.alleles[1] != "*")
+    )  # Filter star alleles as these break VEP
 
     return mt
 
