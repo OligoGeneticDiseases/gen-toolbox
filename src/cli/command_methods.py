@@ -8,9 +8,18 @@ from src.utils.file.file_meta import get_metadata
 from src.utils.general.data_manipulation import batcher
 from src.data_processing.file_io.readers import find_filetype
 from src.data_processing.file_io.writers import write_filelist, trim_prefix
-from src.data_processing.vcf.read import import_and_annotate_vcf_batch, load_db_batch, load_mt
+from src.data_processing.vcf.read import (
+    import_and_annotate_vcf_batch_read,
+    import_and_annotate_vcf_batch,
+    load_db_batch,
+    load_mt,
+)
 from src.data_processing.vcf.transform import reduce_to_2d_table, create_frequency_bins
-from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows, merge_matrix_tables_cols, create_related_samples_table
+from src.data_processing.hail.genomic_operations import (
+    merge_matrix_tables_rows,
+    merge_matrix_tables_cols,
+    create_related_samples_table,
+)
 from src.data_processing.pca.analysis import pca_graphing
 
 
@@ -54,7 +63,6 @@ def write_frequency_table(result, args, name, extra_tag=""):
 
 
 class CommandHandler:
-
     def __init__(self, args):
         self.args = args
 
@@ -80,10 +88,11 @@ class CommandHandler:
         #  If phenotype is set, write two tables of both phenotype match and the opposite set
         match_and_anti_match = list()
         for path in full_paths:
-            if path.is_file() and path.suffix == ".vcf":
+            if path.is_file() and (path.suffix in {".vcf", ".gvcf"}):
                 vcfs.append(path)
             else:
                 vcfs.extend(path.rglob("*.vcf"))
+                vcfs.extend(path.rglob("*.gvcf"))
         metadata = get_metadata(self.args.globals)
         assert metadata is not None
         if self.args.phenotype is not None:
@@ -97,13 +106,17 @@ class CommandHandler:
                     filtered_vcfs.append(path)
             assert (
                 len(filtered_vcfs) > 0
-            ), "No matches found with given phenotype {0}, quitting.".format(self.args.phenotype)  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
+            ), "No matches found with given phenotype {0}, quitting.".format(
+                self.args.phenotype
+            )  # Quit the pipeline if no matches are found, otherwise the antimatch will be all
             anti_match = list(set(vcfs) - set(filtered_vcfs))
             match_and_anti_match.append(filtered_vcfs)
             match_and_anti_match.append(anti_match)
-            hail.utils.info("Found {0} matches for phenotype {1}. Anti-matches: {2}".format(len(filtered_vcfs),
-                                                                                            self.args.phenotype,
-                                                                                            len(anti_match)))
+            hail.utils.info(
+                "Found {0} matches for phenotype {1}. Anti-matches: {2}".format(
+                    len(filtered_vcfs), self.args.phenotype, len(anti_match)
+                )
+            )
         else:
             match_and_anti_match.append(vcfs)  # Append all
 
@@ -115,12 +128,13 @@ class CommandHandler:
             set_tag = "{0}_".format(self.args.phenotype) + set_tag
 
             for i, batch in enumerate(batcher(positive_or_negative_set, N_BATCH)):
-                matrix_tables = import_and_annotate_vcf_batch(
+                # matrix_tables replaced with batch_combined_mt
+                batch_combined_mt = import_and_annotate_vcf_batch_read(
                     batch, metadata=metadata, annotate=self.args.annotate
                 )  # hail.import_vcf() and hail.VEP() within this function
-                batch_combined_mt = merge_matrix_tables_rows(
-                    matrix_tables, self.args.phenotype
-                )  # Merge batch of matrix tables into one
+                # batch_combined_mt = merge_matrix_tables_rows(
+                #     matrix_tables, self.args.phenotype
+                # )  # Merge batch of matrix tables into one
                 if self.args.write:
                     batch_combined_mt.write(
                         Path(self.args.dest)
@@ -158,9 +172,7 @@ class CommandHandler:
             write_frequency_table(
                 result,
                 self.args,
-                name="frequency_table_{0}".format(
-                    len(positive_or_negative_set)
-                ),
+                name="frequency_table_{0}".format(len(positive_or_negative_set)),
                 extra_tag=set_tag,
             )
         handle_quit()
@@ -256,10 +268,13 @@ class CommandHandler:
         mt_paths = list()
         full_paths = [Path(path) for path in self.args.file]
         for path in full_paths:
-            if path.is_file() and path.suffix == ".vcf":
+            if path.is_file() and (
+                path.suffix in {".vcf", ".gvcf"}
+            ):  # gvcf files will have .g.vcf, .genome.vcf which wil be captured by .vcf only
                 mt_paths.append(path)
             else:
                 mt_paths.extend(path.glob("*.vcf"))
+                mt_paths.extend(path.glob("*.gvcf"))
 
         batch_matrix_tables = []
         # don't annotate, downfilter to chr2
