@@ -16,7 +16,6 @@ def reduce_to_2d_table(mt, phenotype=None):
     """
     # Group by globals (phenotype), group by genes, aggregate all into hl.gp_dosage() * 2 (number of total alleles)
     # Filter cols (tables) where phenotype matches command input
-    # TODO: create an anti-set where mt.phenotype != phenotype and write that out as anti-table
     # (for statistical comparisons)
     if phenotype is not None:
         mt = mt.filter_cols(mt.phenotype.matches(phenotype), keep=True)
