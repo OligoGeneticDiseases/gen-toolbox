@@ -1,4 +1,5 @@
 {
+    "store_data": false,
     "intersect_genes_tso": [
         "A2M",
         "A4GALT",
