@@ -10,8 +10,10 @@ from src.data_processing.file_io.writers import trim_prefix
 
 unique = hash(datetime.datetime.utcnow())
 
+print("hail_methods is starting....")
 
 def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
+    print("write_gnomad_table is starting.......")
     gnomad_tb = None  # TODO: define as global variable?
     hailtables = dict()
     metadata_dict = get_metadata(metadata)
@@ -64,6 +66,7 @@ def write_gnomad_table(vcfs, dest, overwrite=False, metadata=None):
 
 
 def get_metadata(metadata_path):
+    print("get_metadata is starting...")
     p = Path(metadata_path)
     metadata_dict = dict()
     assert p.exists()
@@ -77,35 +80,93 @@ def get_metadata(metadata_path):
                 else:
                     metadata_dict[ecode] = ["NA", "NA"]
             else:
+                #sys.stderr.write(
+                #    "Found duplicate key {0} for line {1}. Existing object {2}.\n".format(
+                #        ecode, s, (ecode, metadata_dict[ecode])
+                #    )
+                #)
+
+
+
+                # Log duplicate key, skip or update as needed
                 sys.stderr.write(
-                    "Found duplicate key {0} for line {1}. Existing object {2}.\n".format(
-                        ecode, s, (ecode, metadata_dict[ecode])
-                    )
+                    f"Duplicate key found: {ecode} for line {s}. "
+                    f"Existing value: {metadata_dict[ecode]}. Skipping duplicate.\n"
                 )
+                # Uncomment the line below to update instead of skipping
+                # metadata_dict[ecode] = [s[1], s[2]]
+
     return metadata_dict
 
 
 def append_table(table, prefix, out=None, write=False, metadata=None):
+    print("append_table is starting....")
     mt_a = table
-    mt_a = mt_a.annotate_rows(VEP_str=mt_a.vep.first().split("\\|"))
-    mt_a = mt_a.annotate_entries(
-        AC=mt_a.GT.n_alt_alleles(), VF=hl.float(mt_a.AD[1] / mt_a.DP)
-    )
-    mt_a = mt_a.annotate_rows(
-        impact=mt_a.VEP_str[0],
-        gene=mt_a.VEP_str[1],
-        HGNC_ID=hl.int(parse_empty(mt_a.VEP_str[2])),
-        MAX_AF=hl.float(parse_empty(mt_a.VEP_str[3])),
-    )
-    mt_a = mt_a.drop(mt_a.info)
-    mt_a = mt_a.filter_entries(
-        mt_a.VF >= 0.3, keep=True
-    )  # Remove all not ALT_pos < 0.3 / DP > 20
+    table.describe()
+
+    # Check if 'CSQ' exists in the row schema (for VCF files)
+    if 'CSQ' in mt_a.row.info.dtype.fields:
+        # VCF files with CSQ field
+        mt_a = mt_a.annotate_rows(VEP_str=mt_a.info.CSQ.split("\\|"))
+        mt_a = mt_a.annotate_rows(
+            impact=mt_a.VEP_str[0],
+            gene=mt_a.VEP_str[1],
+            HGNC_ID=hl.int(parse_empty(mt_a.VEP_str[2])),
+            MAX_AF=hl.float(parse_empty(mt_a.VEP_str[3])),
+        )
+    elif 'vep' in mt_a.row.dtype.fields:
+        # VCF files with VEP annotations in 'vep' field
+        mt_a = mt_a.annotate_rows(
+            impact=mt_a.vep.most_severe_consequence,
+            gene=mt_a.vep.transcript_consequences[0].gene_symbol,
+            HGNC_ID=hl.int(parse_empty(mt_a.vep.transcript_consequences[0].hgnc_id)),
+            MAX_AF=hl.float(parse_empty(mt_a.vep.transcript_consequences[0].max_af)),
+        )
+    else:
+        sys.stderr.write("Skipping VEP-based annotations.\n")
+        # GVCF files or VCFs without CSQ/VEP annotations
+        # Annotate based on available fields in 'info'
+        if 'DP' in mt_a.entry.dtype.fields:
+            mt_a = mt_a.annotate_rows(average_depth=hl.agg.mean(mt_a.DP))
+        if 'FS' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(fs_score=mt_a.info.FS)
+        if 'QD' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(qd_score=mt_a.info.QD)
+        if 'SOR' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(sor_score=mt_a.info.SOR)
+        if 'MQ' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(mq_score=mt_a.info.MQ)
+        if 'MQRankSum' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(mq_rank_sum=mt_a.info.MQRankSum)
+        if 'ReadPosRankSum' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(read_pos_rank_sum=mt_a.info.ReadPosRankSum)
+        if 'RatioSoftClips' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(ratio_soft_clips=mt_a.info.RatioSoftClips)
+        if 'FractionInformativeReads' in mt_a.row.info.dtype.fields:
+            mt_a = mt_a.annotate_rows(fraction_informative_reads=mt_a.info.FractionInformativeReads)
+
+    # Annotate entries
+    if 'AD' in mt_a.entry.dtype.fields and 'DP' in mt_a.entry.dtype.fields:
+        mt_a = mt_a.annotate_entries(
+            AC=mt_a.GT.n_alt_alleles(),
+            VF=hl.float(mt_a.AD[1] / mt_a.DP)
+        )
+        mt_a = mt_a.filter_entries(
+            mt_a.VF >= 0.3, keep=True
+        )  # Remove entries with VF < 0.3
+    else:
+        # If 'AD' or 'DP' is not present, adjust accordingly
+        mt_a = mt_a.annotate_entries(
+            AC=mt_a.GT.n_alt_alleles()
+        )
+
+    mt_a = mt_a.drop('info')  # Drop the 'info' field if not needed
+
     if metadata is not None:
         phen, mut = metadata.get(prefix, ["NA", "NA"])
-        if len(phen) == 0:
+        if not phen:
             phen = "NA"
-        if len(mut) == 0:
+        if not mut:
             mut = "NA"
         mt_a = mt_a.annotate_globals(metadata=hl.struct(phenotype=phen, mutation=mut))
 
@@ -114,43 +175,47 @@ def append_table(table, prefix, out=None, write=False, metadata=None):
     return mt_a
 
 
-def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
-    files = list()
-    if type(f) is list:
-        for vcf in f:
-            files.append(vcf)
 
-    elif not f.endswith(".vcf") and not f.endswith(".gz"):
+def vcfs_to_matrixtable(f, destination=None, write=True, annotate=True):
+    print("vcfs_to_matrixtable is starting ......")
+    files = list()
+    if isinstance(f, list):
+        files.extend(f)
+    elif not f.endswith((".vcf", ".gz", ".gvcf")):
         with open(f) as vcflist:
             for vcfpath in vcflist:
                 stripped = vcfpath.strip()
                 assert os.path.exists(stripped)
                 files.append(stripped)
     else:
-        assert os.path.exists(f), "Path {0} does not exist.".format(f)
-        files.append(f)  # Only one file
-
-    # recode = {f"chr{i}":f"{i}" for i in (list(range(1, 23)) + ['X', 'Y'])}
-    # Can import only samples of the same key (matrixtable join), if input is list of vcfs
+        assert os.path.exists(f), f"Path {f} does not exist."
+        files.append(f)
 
     contig_prefix = "chr"
     contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
     contig_recoding.update({"chrX": "X", "chrY": "Y"})
-    table = hl.import_vcf(
-        files, force=True, reference_genome="GRCh37", contig_recoding=contig_recoding
-    )
+
+    if any(file.endswith(".gvcf") for file in files):
+        # Import GVCFs using hl.import_gvcfs
+        sample_names = [os.path.basename(f).replace('.gvcf', '') for f in files]
+        paths = list(zip(files, sample_names))
+        table = hl.import_gvcfs(paths, reference_genome='GRCh37', contig_recoding=contig_recoding)
+    else:
+        table = hl.import_vcf(files, force=True, reference_genome="GRCh37", contig_recoding=contig_recoding)
+        table.describe()
 
     if annotate:
-        table = table.filter_rows(
-            table.alleles[1] != "*"
-        )  # These alleles break VEP, filter out star alleles.
-        table = hl.methods.vep(table, config="vep_settings.json", csq=True)
-    if write:
+        table = table.filter_rows(table.alleles[1] != "*")  # Filter out star alleles
+        table = hl.vep(table, config="vep_settings.json")
+    table.describe()
+
+    if write and destination is not None:
         if not os.path.exists(destination):
             table.write(destination)
         else:
             raise FileExistsError(destination)
     return table
+
 
 
 def table_join(tables_list):
@@ -174,76 +239,81 @@ def mts_to_table(tables):
 
 def gnomad_table(unioned, text="modifier"):
     sys.stderr.write("Creating MAX_AF_frequency table\n")
-    gnomad_tb = unioned.group_by(unioned.gene).aggregate(
-        modifier=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01)
-                & (unioned.impact.contains(hl.literal("MODIFIER"))),
-                hl.agg.sum(unioned.AC),
+
+    if 'impact' in unioned.row:
+        gnomad_tb = unioned.group_by(unioned.gene).aggregate(
+            modifier=hl.struct(
+                gnomad_1=hl.agg.filter(
+                    (unioned.MAX_AF < 0.01)
+                    & (unioned.impact.contains(hl.literal("MODIFIER"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_1_5=hl.agg.filter(
+                    (unioned.MAX_AF > 0.01)
+                    & (unioned.MAX_AF < 0.05)
+                    & (unioned.impact.contains(hl.literal("MODIFIER"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_5_100=hl.agg.filter(
+                    (unioned.MAX_AF > 0.05)
+                    & (unioned.impact.contains(hl.literal("MODIFIER"))),
+                    hl.agg.sum(unioned.AC),
+                ),
             ),
-            gnomad_1_5=hl.agg.filter(
-                (unioned.MAX_AF > 0.01)
-                & (unioned.MAX_AF < 0.05)
-                & (unioned.impact.contains(hl.literal("MODIFIER"))),
-                hl.agg.sum(unioned.AC),
+            low=hl.struct(
+                gnomad_1=hl.agg.filter(
+                    (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("LOW"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_1_5=hl.agg.filter(
+                    (unioned.MAX_AF > 0.01)
+                    & (unioned.MAX_AF < 0.05)
+                    & (unioned.impact.contains(hl.literal("LOW"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_5_100=hl.agg.filter(
+                    (unioned.MAX_AF > 0.05) & (unioned.impact.contains(hl.literal("LOW"))),
+                    hl.agg.sum(unioned.AC),
+                ),
             ),
-            gnomad_5_100=hl.agg.filter(
-                (unioned.MAX_AF > 0.05)
-                & (unioned.impact.contains(hl.literal("MODIFIER"))),
-                hl.agg.sum(unioned.AC),
+            moderate=hl.struct(
+                gnomad_1=hl.agg.filter(
+                    (unioned.MAX_AF < 0.01)
+                    & (unioned.impact.contains(hl.literal("MODERATE"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_1_5=hl.agg.filter(
+                    (unioned.MAX_AF > 0.01)
+                    & (unioned.MAX_AF < 0.05)
+                    & (unioned.impact.contains(hl.literal("MODERATE"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_5_100=hl.agg.filter(
+                    (unioned.MAX_AF > 0.05)
+                    & (unioned.impact.contains(hl.literal("MODERATE"))),
+                    hl.agg.sum(unioned.AC),
+                ),
             ),
-        ),
-        low=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("LOW"))),
-                hl.agg.sum(unioned.AC),
+            high=hl.struct(
+                gnomad_1=hl.agg.filter(
+                    (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("HIGH"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_1_5=hl.agg.filter(
+                    (unioned.MAX_AF > 0.01)
+                    & (unioned.MAX_AF < 0.05)
+                    & (unioned.impact.contains(hl.literal("HIGH"))),
+                    hl.agg.sum(unioned.AC),
+                ),
+                gnomad_5_100=hl.agg.filter(
+                    (unioned.MAX_AF > 0.05) & (unioned.impact.contains(hl.literal("HIGH"))),
+                    hl.agg.sum(unioned.AC),
+                ),
             ),
-            gnomad_1_5=hl.agg.filter(
-                (unioned.MAX_AF > 0.01)
-                & (unioned.MAX_AF < 0.05)
-                & (unioned.impact.contains(hl.literal("LOW"))),
-                hl.agg.sum(unioned.AC),
-            ),
-            gnomad_5_100=hl.agg.filter(
-                (unioned.MAX_AF > 0.05) & (unioned.impact.contains(hl.literal("LOW"))),
-                hl.agg.sum(unioned.AC),
-            ),
-        ),
-        moderate=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01)
-                & (unioned.impact.contains(hl.literal("MODERATE"))),
-                hl.agg.sum(unioned.AC),
-            ),
-            gnomad_1_5=hl.agg.filter(
-                (unioned.MAX_AF > 0.01)
-                & (unioned.MAX_AF < 0.05)
-                & (unioned.impact.contains(hl.literal("MODERATE"))),
-                hl.agg.sum(unioned.AC),
-            ),
-            gnomad_5_100=hl.agg.filter(
-                (unioned.MAX_AF > 0.05)
-                & (unioned.impact.contains(hl.literal("MODERATE"))),
-                hl.agg.sum(unioned.AC),
-            ),
-        ),
-        high=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (unioned.MAX_AF < 0.01) & (unioned.impact.contains(hl.literal("HIGH"))),
-                hl.agg.sum(unioned.AC),
-            ),
-            gnomad_1_5=hl.agg.filter(
-                (unioned.MAX_AF > 0.01)
-                & (unioned.MAX_AF < 0.05)
-                & (unioned.impact.contains(hl.literal("HIGH"))),
-                hl.agg.sum(unioned.AC),
-            ),
-            gnomad_5_100=hl.agg.filter(
-                (unioned.MAX_AF > 0.05) & (unioned.impact.contains(hl.literal("HIGH"))),
-                hl.agg.sum(unioned.AC),
-            ),
-        ),
-    )
+        )
+    else:
+        hl.utils.info("No 'impact' field found. Skipping impact-based aggregation.")
+        gnomad_tb = unioned.group_by(unioned.gene).aggregate()  # Adjust as necessary for non-impact-based aggregation
     return gnomad_tb
 
 

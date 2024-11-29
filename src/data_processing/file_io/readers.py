@@ -52,6 +52,10 @@ def find_filetype(dir, filetype, findunique=False, verbose=True):
                     if not findunique:
                         # Append anyway if findunique is set to False
                         unique_files.append((name, os.path.join(dirpath, name)))
+            else:
+                sys.stderr.write(
+                    f"Warning: File {name} does not match expected filetype {filetype}\n"
+                ) 
     print("Duplicate filenames: {0}".format(duplicates))
     return unique_files
 

@@ -59,22 +59,24 @@ def reduce_to_2d_table(mt, phenotype=None):
     #return out.result()
     """
     # mt.summarize()
-    results_dict = mt.aggregate_entries(
-        hl.agg.group_by(
-            mt.impact,
+    if 'impact' in mt.row:
+        results_dict = mt.aggregate_entries(
             hl.agg.group_by(
-                mt.gene,
-                hl.struct(
-                    gnomad_1=hl.agg.filter((mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
-                    gnomad_1_5=hl.agg.filter(
-                        (mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05), hl.agg.sum(mt.AC)
+                mt.impact,
+                hl.agg.group_by(
+                    mt.gene,
+                    hl.struct(
+                        gnomad_1=hl.agg.filter((mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
+                        gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05), hl.agg.sum(mt.AC)),
+                        gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05), hl.agg.sum(mt.AC)),
                     ),
-                    gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05), hl.agg.sum(mt.AC)),
                 ),
-            ),
+            )
         )
-    )
-    # print(results_dict)
+    else:
+        hl.utils.info("No 'impact' field found. Skipping impact-based grouping.")
+        results_dict = {}  # Return an empty dictionary or adjust based on your needs
+
     return results_dict
 
 
@@ -91,34 +93,43 @@ def create_frequency_bins(inp, _raw_out=True):
     # Transpose the data so that genes are row indexes
     df = df.T
 
-    unzipped_df = pd.concat(
-        [
-            df["HIGH"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("HIGH."),
-            df["MODERATE"]
-            .apply(pd.Series)
-            .astype(pd.UInt64Dtype())
-            .add_prefix("MODERATE."),
-            df["LOW"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("LOW."),
-            df["MODIFIER"]
-            .apply(pd.Series)
-            .astype(pd.UInt64Dtype())
-            .add_prefix("MODIFIER."),
-        ],
-        axis=1,
-    )
-    condition = unzipped_df.columns.str.endswith(
-        ".0"
-    )  # Remove weird excess columns of 0 that come from concat
+    # Attempt to use the original, structured `pd.concat` approach
+    try:
+        unzipped_df = pd.concat(
+            [
+                df["HIGH"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("HIGH."),
+                df["MODERATE"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("MODERATE."),
+                df["LOW"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("LOW."),
+                df["MODIFIER"].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix("MODIFIER."),
+            ],
+            axis=1,
+        )
+    except KeyError:
+        # If a KeyError occurs due to missing impact levels, fall back to a dynamic approach
+        data_frames = []
+        for impact in ["HIGH", "MODERATE", "LOW", "MODIFIER"]:
+            if impact in df:
+                impact_df = df[impact].apply(pd.Series).astype(pd.UInt64Dtype()).add_prefix(f"{impact}.")
+                data_frames.append(impact_df)
+        if data_frames:
+            unzipped_df = pd.concat(data_frames, axis=1)
+        else:
+            unzipped_df = pd.DataFrame()  # Empty DataFrame if no impacts are found
+
+    # Remove any unnecessary columns ending with ".0"
+    condition = unzipped_df.columns.str.endswith(".0")
     unzipped_df = unzipped_df.loc[:, ~condition]
 
-    # Genes that aren't groupable by a certain impact (e.g. no HIGH in any frequency bin, would return NA,
-    # Turn these into 0
+    # Fill NaN values with 0 for genes without certain impact levels
     unzipped_df = unzipped_df.fillna(0)
+
+    # Save raw output if specified
     if _raw_out:
         with hl.utils.with_local_temp_file("hail_raw_json_frequencies.txt") as path:
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
             with open(path, "w", encoding="utf-8") as f:
-                f.writelines(inp)
+                f.write(str(inp))  # Convert dict to string for writing
             hl.utils.info("Wrote raw output of bins dict to {0}".format(path))
+
     return unzipped_df
