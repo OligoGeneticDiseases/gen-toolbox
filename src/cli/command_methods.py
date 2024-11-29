@@ -85,8 +85,10 @@ class CommandHandler:
         Creates batches of VCF files so that Hail would not crash.
         """
         print("Handle_read_vcf_command starting...")
-        full_paths = [Path(path) for path in self.args.file]
-        print("full_paths = [Path(path) for path in self.args.file] done now")
+        full_paths = [Path(path).resolve() if not Path(path).is_absolute() else Path(path) for path in self.args.file]
+        #full_paths = [Path(path) for path in self.args.file]
+        print("full_paths = [Path(path).resolve() for path in self.args.file] done now")
+        print(self.args.file, "self.args.file")
 
         vcfs = []
         gvcfs = []
@@ -99,18 +101,34 @@ class CommandHandler:
 
         # Collect VCF and GVCF files from specified paths
         for path in full_paths:
-            if path.is_file() and path.suffix in {".vcf", ".gvcf"}:
-                (gvcfs if path.suffix == ".gvcf" else vcfs).append(path)
+            print(
+                f"Resolved Path: {path}, Exists: {path.exists()}, Is file: {path.is_file()}, Suffix: {path.suffix}, Name: {path.name}")
+
+            if path.is_file():
+                # Explicitly handle .g.vcf and .g.vcf.gz
+                if path.name.endswith(".g.vcf.gz") or path.name.endswith(".g.vcf"):
+                    gvcfs.append(path)
+                elif path.name.endswith(".vcf.gz") or path.suffix == ".vcf":
+                    vcfs.append(path)
             else:
+                # Recursive search in directories
                 vcfs.extend(path.rglob("*.vcf"))
+                vcfs.extend(path.rglob("*.vcf.gz"))
                 gvcfs.extend(path.rglob("*.gvcf"))
+                gvcfs.extend(path.rglob("*.g.vcf.gz"))
+
+        print(f"Collected VCFs: {[str(v) for v in vcfs]}")
+        print(f"Collected GVCFs: {[str(g) for g in gvcfs]}")
 
         metadata = get_metadata(self.args.globals)
         assert metadata is not None
+        print("assert metadata is not None done now")
+
 
         match_and_anti_match = []
         if self.args.phenotype:
             # Filter according to the phenotype in metadata
+            print("Filter according to the phenotype in metadata done now")
             matches = find_elements(metadata, self.args.phenotype, sep=",")
             filtered_vcfs = [p for p in vcfs if trim_prefix(p.stem) in matches]
             filtered_gvcfs = [p for p in gvcfs if trim_prefix(p.stem) in matches]
@@ -126,10 +144,12 @@ class CommandHandler:
                 f"Anti-matches: {len(anti_match_vcfs)} VCF and {len(anti_match_gvcfs)} GVCF."
             )
         else:
+            print("No phenotype specified, processing all files.")
             match_and_anti_match = [(vcfs, gvcfs)] # append all
 
         # Create frequency tables for both match and anti-match
         for k, (vcf_set, gvcf_set) in enumerate(match_and_anti_match):
+            print(f"Processing {len(vcf_set)} VCF and {len(gvcf_set)} GVCF files in for loop")
             n_batches = (len(vcf_set) + len(gvcf_set)) // N_BATCH
             batch_matrix_tables = []
             set_tag = f"{self.args.phenotype}_{'positive' if k == 0 else 'negative'}"
@@ -144,6 +164,7 @@ class CommandHandler:
 
                 # Process VCFs and GVCFs in separate batches
                 if vcf_batch:
+                    print("processing vcf batch in handle_read_vcfs_command")
                     vcf_combined_mt = import_and_annotate_vcf_batch_read(
                         vcf_batch, metadata=metadata, annotate=self.args.annotate
                     )
@@ -151,6 +172,7 @@ class CommandHandler:
                         batch_matrix_tables.append(vcf_combined_mt)
 
                 if gvcf_batch:
+                    print("processing gvcf batch in handle_read_vcfs_command")
                     gvcf_combined_mt = import_and_annotate_gvcf_batch(
                         gvcf_batch, metadata=metadata, annotate=self.args.annotate
                     )
@@ -171,6 +193,7 @@ class CommandHandler:
                 reduced_mt = reduce_to_2d_table(final_combined_mt)
                 result = create_frequency_bins(reduced_mt)
                 write_frequency_table(result, self.args, name="frequency_table", extra_tag=set_tag)
+                print(f"Completed processing and merging for {set_tag} files.")
             handle_quit()
 
 
