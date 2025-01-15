@@ -14,8 +14,7 @@ from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows
 from src.data_processing.pca.analysis import pca_graphing
 
 
-unique = hash(datetime.datetime.utcnow())  # TODO: delete, variable not used
-N_BATCH = 75
+N_BATCH = 50
 
 
 def handle_quit():
@@ -75,6 +74,8 @@ class CommandHandler:
         for a match and anti_match set of a given phenotype (matches from globals file).
         Creates batches of VCF files so that Hail would not crash.
         """
+        hail.default_reference = hail.ReferenceGenome.read("GRCh37_MT.json")
+
         full_paths = [Path(path) for path in self.args.file]
         vcfs = []
         #  If phenotype is set, write two tables of both phenotype match and the opposite set

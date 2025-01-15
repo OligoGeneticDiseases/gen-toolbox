@@ -42,9 +42,10 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
     prefix = trim_prefix(vcf_path.stem)
     contig_prefix = "chr"
     contig_recoding = {f"{contig_prefix}{i}": str(i) for i in range(1, 23)}
-    contig_recoding.update({"chrX": "X", "chrY": "Y"})
+    contig_recoding.update({"chrX": "X", "chrY": "Y", "chrM": "MT"})
+
     mt = hl.import_vcf(
-        vcf_path.__str__(), reference_genome="GRCh37", contig_recoding=contig_recoding
+        vcf_path.__str__(), reference_genome=hl.default_reference, contig_recoding=contig_recoding
     )
     # mt = hl.filter_alleles(mt, lambda allele, i: hl.is_star(mt.alleles[0], allele))
     # updated_info = mt.info.annotate(AC=mt.new_to_old.map(lambda i: mt.info.AC[i - 1]))
@@ -60,6 +61,7 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
                 for x in interval
             ],
         )
+    mt = mt.filter_rows(mt.locus.contig != "MT")
     mt = mt.filter_rows(mt.alleles[1] != "*")  # Filter star alleles as these break VEP
     if annotate:
         mt = hl.vep(mt, "./src/config/vep_settings.json")
@@ -75,10 +77,10 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
         )  # Convert CSQ string into the expected VEP output
 
         mt = mt.annotate_rows(
-            impact=mt.vep[0],
-            gene=mt.vep[1],
-            HGNC_ID=hl.int(parse_empty(mt.vep[2])),
-            MAX_AF=hl.float(parse_empty(mt.vep[3])),
+            impact=mt.vep[2],
+            gene=mt.vep[3],
+            HGNC_ID=hl.int(parse_empty(mt.vep[22])),
+            MAX_AF=hl.float(parse_empty(mt.vep[40])),
         )
     mt = mt.annotate_entries(AC=mt.GT.n_alt_alleles(), VF=hl.float(mt.AD[1] / mt.DP))
     if metadata is not None:
