@@ -1,3 +1,5 @@
+import pathlib
+
 import hail as hl
 
 from src.data_processing.vcf.hail_metods import parse_empty
@@ -18,14 +20,14 @@ def load_mt(mt_path):
     return hl.read_matrix_table(mt_path)
 
 
-def import_and_annotate_vcf_batch(vcfs, metadata=None, annotate=True, interval=None):
+def import_and_annotate_vcf_batch(vcfs, metadata=None, annotate=True, interval=None, location=None):
     batch = []
     for vcf in vcfs:
-        batch.append(
-            import_and_annotate_vcf(
-                vcf, metadata=metadata, annotate=annotate, interval=interval
-            )
-        )
+        mt = import_and_annotate_vcf(
+                vcf, metadata=metadata, annotate=annotate, interval=interval)
+        mt_path = pathlib.Path(location).joinpath(hl.eval(mt.prefix)).as_posix()
+        mt.write(mt_path)
+        batch.append(load_mt(mt_path))
     return batch
 
 
@@ -93,8 +95,11 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
             metadata=hl.struct(phenotype=phen, mutation=mut)
         )  # Annotate all rows with corresponding meta
     mt = mt.drop(mt.vep)  # Drop now duplicated field
+    mt = mt.drop(mt.info)
     mt = mt.filter_entries(
         mt.VF >= 0.3, keep=True
     )  # Remove all not ALT_pos < 0.3 / DP > 30
-    mt.filter_entries(mt.DP > 30, keep=True)
+    mt = mt.filter_entries(mt.DP > 30, keep=True)
+    mt = mt.annotate_globals(prefix=prefix)
+
     return mt

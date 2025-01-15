@@ -2,6 +2,8 @@ import datetime
 import os
 import hail
 from pathlib import Path
+
+import math
 from hail.utils import info
 
 from src.utils.file.file_meta import get_metadata
@@ -110,33 +112,32 @@ class CommandHandler:
 
         # Create frequency tables for both match and anti-match
         for k, positive_or_negative_set in enumerate(match_and_anti_match):
-            n_batches = int(len(positive_or_negative_set) / N_BATCH)
+            n_batches = int(math.ceil(len(positive_or_negative_set) / N_BATCH))
             batch_matrix_tables = []
             set_tag = "positive" if k == 0 else "negative"
             set_tag = "{0}_".format(self.args.phenotype) + set_tag
 
             for i, batch in enumerate(batcher(positive_or_negative_set, N_BATCH)):
                 matrix_tables = import_and_annotate_vcf_batch(
-                    batch, metadata=metadata, annotate=self.args.annotate
+                    batch, metadata=metadata, annotate=self.args.annotate, location=self.args.dest
                 )  # hail.import_vcf() and hail.VEP() within this function
                 batch_combined_mt = merge_matrix_tables_rows(
                     matrix_tables, self.args.phenotype
                 )  # Merge batch of matrix tables into one
                 if self.args.write:
-                    batch_combined_mt.write(
-                        Path(self.args.dest)
-                        .joinpath(
+                    combined_mt_path = Path(self.args.dest).joinpath(
                             "multi_batch_{0}_{1}_dataset_{2}_{3}.mt".format(
-                                i, len(batch), len(positive_or_negative_set), set_tag
-                            )
-                        )
-                        .__str__()
-                    )  # Write MatrixTable to disk TODO: log values don't make sense after a certain number of batches i.e. batch 9/8
+                                i+1, len(batch), len(positive_or_negative_set), set_tag
+                            )).as_posix()
+                    batch_combined_mt.write(combined_mt_path)
+                    # Write MatrixTable to disk TODO: log values don't make sense after a certain number of batches i.e. batch 9/8
                     info(
                         "Wrote batch {0}/{1} onto disk with {2} subelements.".format(
-                            i + 1, n_batches, N_BATCH
+                            i + 1, n_batches, len(batch)
                         )
                     )
+                    info(f"reading{combined_mt_path}")
+                    batch_combined_mt = hail.read_matrix_table(combined_mt_path)
 
                 #  None in case of small batch with phenotype negative, another batch might contain results
                 if batch_combined_mt is not None:

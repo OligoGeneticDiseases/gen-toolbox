@@ -1,11 +1,7 @@
 {
-  "spark.sql.files.maxPartitionBytes": "60000000000",
-  "spark.sql.files.openCostInBytes": "60000000000",
   "spark.submit.deployMode": "client",
   "spark.app.name": "HailTools-TSHC",
-  "spark.executor.memory": "16g",
-  "spark.executor.memoryOverhead":"2048m",
-  "spark.executor.cores": "4",
+  "spark.executor.cores": "1",
   "spark.driver.memory": "56g",
   "spark.jars": "{hail_home}/backend/hail-all-spark.jar",
   "spark.executor.extraClassPath": "./hail-all-spark.jar",

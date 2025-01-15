@@ -25,7 +25,8 @@ def main():
         traceback.print_exc()
         sys.exit(1)
     except Exception as e:
-        print("ERROR: " + str(e))
+        exc = traceback.format_exc()
+        print("ERROR: " + str(exc))
         sys.exit(1)
 
 
