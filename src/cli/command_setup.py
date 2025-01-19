@@ -68,7 +68,10 @@ def init_spark_and_run(args, conf, func):
             min_block_size=4096,
             tmp_dir=args.temp,
             local_tmpdir=args.temp,
-            log=hl.utils.timestamp_path(f"{args.temp}logfile", f".{args.command}.log")
+            log=hl.utils.timestamp_path(f"{args.temp}logfile", f".{args.command}.log"),
+            #log=f"{args.dest}/hail_{args.command}.log",
+            #verbose=True,
+            quiet=False
         )
     else:
         hl.init(backend="spark", sc=sc, min_block_size=64)
