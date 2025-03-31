@@ -17,7 +17,9 @@ def load_db_batch(mts):
 
 
 def load_mt(mt_path):
-    return hl.read_matrix_table(mt_path)
+    mt = hl.read_matrix_table(mt_path)
+    hl.utils.info(f"Read MatrixTable {mt_path}")
+    return mt
 
 
 def import_and_annotate_vcf_batch(vcfs, metadata=None, annotate=True, interval=None, location=None):
@@ -25,9 +27,10 @@ def import_and_annotate_vcf_batch(vcfs, metadata=None, annotate=True, interval=N
     for vcf in vcfs:
         mt = import_and_annotate_vcf(
                 vcf, metadata=metadata, annotate=annotate, interval=interval)
-        mt_path = pathlib.Path(location).joinpath(hl.eval(mt.prefix)).as_posix()
-        mt.write(mt_path)
-        batch.append(load_mt(mt_path))
+        mt_path = pathlib.Path(location).joinpath(f"{hl.eval(mt.prefix)}.mtx").as_posix()
+        #mt.write(mt_path)
+        #batch.append(load_mt(mt_path))
+        batch.append(mt)
     return batch
 
 
@@ -63,8 +66,9 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
                 for x in interval
             ],
         )
-    mt = mt.filter_rows(mt.locus.contig != "MT")
+    mt = mt.filter_rows(mt.locus.contig != "MT") # Filter mitochondrial
     mt = mt.filter_rows(mt.alleles[1] != "*")  # Filter star alleles as these break VEP
+
     if annotate:
         mt = hl.vep(mt, "./src/config/vep_settings.json")
         mt = mt.annotate_rows(
@@ -79,11 +83,14 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
         )  # Convert CSQ string into the expected VEP output
 
         mt = mt.annotate_rows(
-            impact=mt.vep[2],
-            gene=mt.vep[3],
-            HGNC_ID=hl.int(parse_empty(mt.vep[22])),
-            MAX_AF=hl.float(parse_empty(mt.vep[40])),
+            # For self-annotated the indexes might be very different in a CSQ string, i.e. for DRAGEN output it might be
+            # 2, 3, 22, 23
+            impact=mt.vep[0],
+            gene=mt.vep[1],
+            HGNC_ID=hl.int(parse_empty(mt.vep[2])),
+            MAX_AF=hl.float(parse_empty(mt.vep[3])),
         )
+    mt = mt.filter_rows(mt.MAX_AF < 0.01) # Filter out common variants (>1%)
     mt = mt.annotate_entries(AC=mt.GT.n_alt_alleles(), VF=hl.float(mt.AD[1] / mt.DP))
     if metadata is not None:
         phen, mut = metadata.get(prefix, ["NA", "NA"])

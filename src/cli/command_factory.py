@@ -170,6 +170,15 @@ class CommandFactory:
             default=False,
             action="store_true",
         )
+        loaddb.add_argument(
+            "-t",
+            "--temp",
+            help="Destination folder for all Hail temp files",
+            nargs="?",
+            const=os.path.abspath(".."),
+            default="/tmp/",
+            required=False,
+        )
 
     def create_check_relatedness_command(self):
         check_relatedness = self.subparsers.add_parser(

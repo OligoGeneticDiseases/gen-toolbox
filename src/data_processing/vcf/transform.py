@@ -23,39 +23,39 @@ def reduce_to_2d_table(mt, phenotype=None):
 
     out = mt.group_rows_by(mt.gene).aggregate_entries(
         modifier=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (mt.MAX_AF < 0.01) & (mt.impact.contains(hl.literal("MODIFIER"))),
+            gnomad_001=hl.agg.filter(
+                (mt.MAX_AF < 0.0001) & (mt.impact.contains(hl.literal("MODIFIER"))),
                 hl.agg.sum(mt.AC)),
-            gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05) & (
+            gnomad_001_01=hl.agg.filter((mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001) & (
                 mt.impact.contains(hl.literal("MODIFIER"))), hl.agg.sum(mt.AC)),
-            gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05) & (
+            gnomad_01_1=hl.agg.filter((mt.MAX_AF > 0.001) & (
                 mt.impact.contains(hl.literal("MODIFIER"))), hl.agg.sum(mt.AC))),
         low=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (mt.MAX_AF < 0.01) & (mt.impact.contains(hl.literal("LOW"))),
+            gnomad_001=hl.agg.filter(
+                (mt.MAX_AF < 0.0001) & (mt.impact.contains(hl.literal("LOW"))),
                 hl.agg.sum(mt.AC)),
-            gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05) & (
+            gnomad_001_01=hl.agg.filter((mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001) & (
                 mt.impact.contains(hl.literal("LOW"))), hl.agg.sum(mt.AC)),
-            gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05) & (
+            gnomad_01_1=hl.agg.filter((mt.MAX_AF > 0.001) & (
                 mt.impact.contains(hl.literal("LOW"))), hl.agg.sum(mt.AC))),
         moderate=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (mt.MAX_AF < 0.01) & (mt.impact.contains(hl.literal("MODERATE"))),
+            gnomad_001=hl.agg.filter(
+                (mt.MAX_AF < 0.0001) & (mt.impact.contains(hl.literal("MODERATE"))),
                 hl.agg.sum(mt.AC)),
-            gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05) & (
+            gnomad_001_01=hl.agg.filter((mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001) & (
                 mt.impact.contains(hl.literal("MODERATE"))), hl.agg.sum(mt.AC)),
-            gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05) & (
+            gnomad_01_1=hl.agg.filter((mt.MAX_AF > 0.001) & (
                 mt.impact.contains(hl.literal("MODERATE"))), hl.agg.sum(mt.AC))),
         high=hl.struct(
-            gnomad_1=hl.agg.filter(
-                (mt.MAX_AF < 0.01) & (mt.impact.contains(hl.literal("HIGH"))),
+            gnomad_001=hl.agg.filter(
+                (mt.MAX_AF < 0.0001) & (mt.impact.contains(hl.literal("HIGH"))),
                 hl.agg.sum(mt.AC)),
-            gnomad_1_5=hl.agg.filter((mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05) & (
+            gnomad_001_01=hl.agg.filter((mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001) & (
                 mt.impact.contains(hl.literal("HIGH"))), hl.agg.sum(mt.AC)),
-            gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05) & (
+            gnomad_01_1=hl.agg.filter((mt.MAX_AF > 0.001) & (
                 mt.impact.contains(hl.literal("HIGH"))), hl.agg.sum(mt.AC))))
 
-    return out.result().entries().to_pandas()
+    #return out.result().entries().to_pandas()
 
     #mt.describe()
     #mt.summarize()
@@ -65,11 +65,11 @@ def reduce_to_2d_table(mt, phenotype=None):
             hl.agg.group_by(
                 mt.gene,
                 hl.struct(
-                    gnomad_1=hl.agg.filter((mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
-                    gnomad_1_5=hl.agg.filter(
-                        (mt.MAX_AF > 0.01) & (mt.MAX_AF < 0.05), hl.agg.sum(mt.AC)
+                    gnomad_001=hl.agg.filter((mt.MAX_AF < 0.0001), hl.agg.sum(mt.AC)),
+                    gnomad_001_01=hl.agg.filter(
+                        (mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001), hl.agg.sum(mt.AC)
                     ),
-                    gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.05), hl.agg.sum(mt.AC)),
+                    gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.001) & (mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
                 ),
             ),
         )

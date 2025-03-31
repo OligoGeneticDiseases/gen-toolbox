@@ -1,5 +1,7 @@
 import datetime
 import os
+import traceback
+
 import hail
 from pathlib import Path
 
@@ -16,7 +18,7 @@ from src.data_processing.hail.genomic_operations import merge_matrix_tables_rows
 from src.data_processing.pca.analysis import pca_graphing
 
 
-N_BATCH = 50
+N_BATCH = 500
 
 
 def handle_quit():
@@ -76,7 +78,7 @@ class CommandHandler:
         for a match and anti_match set of a given phenotype (matches from globals file).
         Creates batches of VCF files so that Hail would not crash.
         """
-        hail.default_reference = hail.ReferenceGenome.read("GRCh37_MT.json")
+        hail.default_reference = hail.ReferenceGenome.read("/home/villem/branches/stats-burden-analysis/GRCh37_MT.json")
 
         full_paths = [Path(path) for path in self.args.file]
         vcfs = []
@@ -107,6 +109,18 @@ class CommandHandler:
             hail.utils.info("Found {0} matches for phenotype {1}. Anti-matches: {2}".format(len(filtered_vcfs),
                                                                                             self.args.phenotype,
                                                                                             len(anti_match)))
+
+            # Create symlink folders from base data (i.e. VCFs)
+            for link in filtered_vcfs:
+                symlink_path = Path(f"{self.args.temp}/positive_{self.args.phenotype}_{len(filtered_vcfs)}/{link.name}")
+                symlink_path.parent.mkdir(parents=True, exist_ok=True)
+                if not symlink_path.exists():
+                    symlink_path.symlink_to(link)
+            for link in anti_match:
+                symlink_path = Path(f"{self.args.temp}/negative_{self.args.phenotype}_{len(anti_match)}/{link.name}")
+                symlink_path.parent.mkdir(parents=True, exist_ok=True)
+                if not symlink_path.exists():
+                    symlink_path.symlink_to(link)
         else:
             match_and_anti_match.append(vcfs)  # Append all
 
@@ -116,39 +130,56 @@ class CommandHandler:
             batch_matrix_tables = []
             set_tag = "positive" if k == 0 else "negative"
             set_tag = "{0}_".format(self.args.phenotype) + set_tag
+            info(f"Starting with set: {set_tag} ({len(positive_or_negative_set)}). "
+                 f"Dividing work into batches of {N_BATCH}, with {n_batches} batches.")
+            if k == 0:
+                info(f"Skipping {set_tag} due to debugging tag active.")
+                stack = traceback.extract_stack()
+                # Reports this location in the logfile.
+                caller = stack[-1]
+                info(f"File: {caller.filename}, Function: {caller.name}, Line: {caller.lineno}")
+                continue #uncommenting this will skip reading positive set
+                pass
 
             for i, batch in enumerate(batcher(positive_or_negative_set, N_BATCH)):
-                matrix_tables = import_and_annotate_vcf_batch(
-                    batch, metadata=metadata, annotate=self.args.annotate, location=self.args.dest
-                )  # hail.import_vcf() and hail.VEP() within this function
-                batch_combined_mt = merge_matrix_tables_rows(
-                    matrix_tables, self.args.phenotype
-                )  # Merge batch of matrix tables into one
-                if self.args.write:
-                    combined_mt_path = Path(self.args.dest).joinpath(
-                            "multi_batch_{0}_{1}_dataset_{2}_{3}.mt".format(
-                                i+1, len(batch), len(positive_or_negative_set), set_tag
-                            )).as_posix()
-                    batch_combined_mt.write(combined_mt_path)
-                    # Write MatrixTable to disk TODO: log values don't make sense after a certain number of batches i.e. batch 9/8
-                    info(
-                        "Wrote batch {0}/{1} onto disk with {2} subelements.".format(
-                            i + 1, n_batches, len(batch)
+                combined_mt_path = Path(self.args.dest).joinpath(
+                    "multi_batch_{0}_{1}_dataset_{2}_{3}.mt".format(
+                        i+1, len(batch), len(positive_or_negative_set), set_tag
+                    )).as_posix()
+                if not Path(combined_mt_path).exists():
+                    matrix_tables = import_and_annotate_vcf_batch(
+                        batch, metadata=metadata, annotate=self.args.annotate, location=self.args.dest
+                    )  # hail.import_vcf() and hail.VEP() within this function
+                    batch_combined_mt = merge_matrix_tables_rows(
+                        matrix_tables, self.args.phenotype
+                    )  # Merge batch of matrix tables into one
+                    if self.args.write:
+                        batch_combined_mt.write(combined_mt_path)
+                        # Write MatrixTable to disk TODO: log values don't make sense after a certain number of batches i.e. batch 9/8
+                        info(
+                            "Wrote batch {0}/{1} onto disk with {2} subelements.".format(
+                                i + 1, n_batches, len(batch)
+                            )
                         )
-                    )
-                    info(f"reading{combined_mt_path}")
-                    batch_combined_mt = hail.read_matrix_table(combined_mt_path)
-
+                        info(f"reading{combined_mt_path}")
+                        #batch_combined_mt = hail.read_matrix_table(combined_mt_path)
+                        batch_combined_mt.unpersist()
+                else:
+                    info(
+                        "Skipping batch {0}/{1}. Read from {2} disk with {3} subelements.".format(
+                            i + 1, n_batches, combined_mt_path, len(batch)
+                        ))
+                    #batch_combined_mt = hail.read_matrix_table(combined_mt_path)
                 #  None in case of small batch with phenotype negative, another batch might contain results
-                if batch_combined_mt is not None:
-                    batch_matrix_tables.append(batch_combined_mt)
-            if len(batch_matrix_tables) > N_BATCH:
+                if Path(combined_mt_path).exists() is not None:
+                    batch_matrix_tables.append(combined_mt_path)
+            if len(batch_matrix_tables) > int(N_BATCH / 2):
                 super_batch = []
-                for j, batch in enumerate(batch_matrix_tables, int(N_BATCH / 10)):
-                    super_batch.append(merge_matrix_tables_rows(batch))
+                for j, batch in enumerate(batcher(batch_matrix_tables, int(N_BATCH / 10))):
+                    super_batch.append(merge_matrix_tables_rows(load_db_batch(batch)))
                 final_combined_mt = merge_matrix_tables_rows(super_batch)
             else:
-                final_combined_mt = merge_matrix_tables_rows(batch_matrix_tables)
+                final_combined_mt = merge_matrix_tables_rows(load_db_batch(batch_matrix_tables))
             reduced_mt = reduce_to_2d_table(
                 final_combined_mt
             )  # Reduce the matrix table to a 2D matrix table with gene and frequency as keys
@@ -184,7 +215,7 @@ class CommandHandler:
                     mt_paths.append(path)
                 else:
                     mt_paths.extend(path.glob("*.mt"))
-
+        mt_paths.sort()
         batch_matrix_tables = []
         steps = 0
         if len(mt_paths) > 1:
@@ -198,15 +229,15 @@ class CommandHandler:
                     batch_combined_mt.write(
                         Path(self.args.dest)
                         .joinpath(
-                            "multi_batch_dataset_{0}_{1}.mt_combined".format(
-                                i, len(batch)
+                            "multi_batch_dataset_{0}_{1}_{2}.mt_combined".format(
+                                i+1, len(batch), len(mt_paths)+1
                             )
                         )
                         .__str__()
                     )
                 hail.utils.info(
-                    "OLIGO: multi_batch_dataset_{0}_{1}.mt_combined complete".format(
-                        i, len(batch)
+                    "OLIGO: multi_batch_dataset_{0}_{1}_{2}.mt_combined complete".format(
+                        i+1, len(batch), len(mt_paths)+1
                     )
                 )
                 steps += 1
@@ -234,7 +265,7 @@ class CommandHandler:
             else:
                 final_combined_mt = load_mt(mt_paths[0].__str__())
         dest = Path(self.args.dest).joinpath(
-            "multi_batch_dataset_merged_{0}.mt".format(steps)
+            "multi_batch_dataset_merged_{0}.mt_combined".format(steps)
         )
         if self.args.write and (not dest.exists() or self.args.overwrite):
             # Can't write and load recursively from the same file, therefore skip writing if file exists
