@@ -69,7 +69,7 @@ def reduce_to_2d_table(mt, phenotype=None):
                     gnomad_001_01=hl.agg.filter(
                         (mt.MAX_AF > 0.0001) & (mt.MAX_AF < 0.001), hl.agg.sum(mt.AC)
                     ),
-                    gnomad_5_100=hl.agg.filter((mt.MAX_AF > 0.001) & (mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
+                    gnomad_01_1=hl.agg.filter((mt.MAX_AF > 0.001) & (mt.MAX_AF < 0.01), hl.agg.sum(mt.AC)),
                 ),
             ),
         )
