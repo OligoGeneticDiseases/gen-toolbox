@@ -4,6 +4,8 @@ import os
 import hail as hl
 from hail.utils import info
 
+from src.data_processing.vcf.transform import reduce_to_2d_table
+
 
 # Content: Functions specifically related to genomic operations using Hail (from hail_methods.py).
 
@@ -136,7 +138,7 @@ def merge_matrix_tables_rows(matrix_tables, phenotype=None):
     return combined_mt
 
 
-def merge_matrix_tables_cols(matrix_tables):
+def merge_matrix_tables_cols(matrix_tables: [hl.MatrixTable]) -> hl.MatrixTable:
     """
     Merge all matrix tables into one big matrix table with the same header and the same set of samples.
     TODO: change signature to write after merge if --write is active (default=False)
@@ -154,5 +156,10 @@ def merge_matrix_tables_cols(matrix_tables):
     )
     for mt in matrix_tables[1:]:
         mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
+        mt = mt.select_rows(mt.locus, mt.alleles, mt.gene)
         combined_mt = combined_mt.union_cols(mt, row_join_type="outer")
     return combined_mt
+
+def get_variants_counts_per_gene(mt, phenotype=None):
+    mt = mt.select_entries(mt.AD, mt.DP, mt.GT, mt.VF, mt.AC)
+    return reduce_to_2d_table(mt, phenotype)

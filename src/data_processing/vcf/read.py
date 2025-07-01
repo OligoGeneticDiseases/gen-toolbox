@@ -1,6 +1,7 @@
 import pathlib
 
 import hail as hl
+import pandas as pd
 
 from src.data_processing.vcf.hail_metods import parse_empty
 from src.utils.general.string_operations import trim_prefix
@@ -98,6 +99,7 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
             phen = "NA"
         if len(mut) == 0:
             mut = "NA"
+        mt = mt.annotate_cols(pheno = hl.literal(phen)[mt.s])
         mt.annotate_globals(
             metadata=hl.struct(phenotype=phen, mutation=mut)
         )  # Annotate all rows with corresponding meta
@@ -107,6 +109,7 @@ def import_and_annotate_vcf(vcf_path, metadata=None, annotate=True, interval=Non
         mt.VF >= 0.3, keep=True
     )  # Remove all not ALT_pos < 0.3 / DP > 30
     mt = mt.filter_entries(mt.DP > 30, keep=True)
-    mt = mt.annotate_globals(prefix=prefix)
 
     return mt
+
+

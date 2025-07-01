@@ -111,6 +111,14 @@ class CommandFactory:
             default="/tmp/",
             required=False,
         )
+        read_vcfs.add_argument(
+            "--interval",
+            help="Interval to downfilter i.e. chrX or 1:12000-20000, corresponds to Hail interval nomenclature.",
+            dest="interval",
+            required=False,
+            default=None,
+            type=str,
+        )
 
     def create_load_db_command(self):
         loaddb = self.subparsers.add_parser(
@@ -159,9 +167,11 @@ class CommandFactory:
             type=str,
         )
         loaddb.add_argument(
+            "-p",
             "--phenotype",
-            help="Filter a subset of samples with given phenotype. Regex strings accepted e.g. r'NA\d+",
+            help="Filter according to this specific phenotype.",
             required=False,
+            default=None,
             type=str,
         )
         loaddb.add_argument(
@@ -179,7 +189,29 @@ class CommandFactory:
             default="/tmp/",
             required=False,
         )
-
+        loaddb.add_argument(
+            "--annotate",
+            help="Annotate flag will annotate input VCFs with Ensembl VEP. Set to false to skip annotations."
+            "Annotated VCFs must be contain VEP annotations (CSQ string must be present with gene names, "
+            "allele frequencies).",
+            dest="annotate",
+            default=True,  # sets the default flag for "annotate" as active implicitly
+            action="store_true",
+        )
+        loaddb.add_argument(
+            "--no-annotate",
+            help="Settings this flag will skip annotations using VEP.",
+            dest="annotate",
+            action="store_false",
+        )
+        loaddb.add_argument(
+            "--interval",
+            help="Interval to downfilter i.e. chrX or 1:12000-20000, corresponds to Hail interval nomenclature.",
+            dest="interval",
+            required=False,
+            default=None,
+            type=str,
+        )
     def create_check_relatedness_command(self):
         check_relatedness = self.subparsers.add_parser(
             "relatedness2", help="Create a table of KING phi relatedness of input VCFs"
@@ -236,4 +268,84 @@ class CommandFactory:
             nargs="?",
             const=os.path.abspath(".."),
             required=True,
+        )
+    def create_run_skat_command(self):
+        run_skat = self.subparsers.add_parser(
+            "runskat", help="Turn VCF file(s) into a Hail MatrixTable."
+        )
+        run_skat.add_argument(
+            "-f",
+            "--file",
+            help="The VCF file(s) [comma seperated], .txt/.list of VCF paths to be parsed or folder containing VCF "
+            "files.",
+            nargs="+",
+            required=True,
+        )
+        run_skat.add_argument(
+            "-d",
+            "--dest",
+            help="Destination folder to write the frequency tables and Hail MatrixTable files (if --write is active).",
+            nargs="?",
+            const=os.path.abspath(".."),
+            required=True,
+        )
+        run_skat.add_argument(
+            "-r",
+            "--overwrite",
+            help="Overwrites any existing output MatrixTables, HailTables.",
+            action="store_true",
+        )
+        run_skat.add_argument(
+            "-g",
+            "--globals",
+            help="Tab delimited input file containing globals string  for a given unique sample (e.g. "
+            "Identifier\\t.Phenotype\\tMutations",
+            required=True,
+            type=str,
+        )
+        run_skat.add_argument(
+            "-p",
+            "--phenotype",
+            help="Filter according to this specific phenotype.",
+            required=False,
+            default=None,
+            type=str,
+        )
+        run_skat.add_argument(
+            "--annotate",
+            help="Annotate flag will annotate input VCFs with Ensembl VEP. Set to false to skip annotations."
+            "Annotated VCFs must be contain VEP annotations (CSQ string must be present with gene names, "
+            "allele frequencies).",
+            dest="annotate",
+            default=True,  # sets the default flag for "annotate" as active implicitly
+            action="store_true",
+        )
+        run_skat.add_argument(
+            "--no-annotate",
+            help="Settings this flag will skip annotations using VEP.",
+            dest="annotate",
+            action="store_false",
+        )
+        run_skat.add_argument(
+            "--write",
+            help="Write the unioned VCF MatrixTable to disk for later loading and handling.",
+            default=False,
+            action="store_true",
+        )
+        run_skat.add_argument(
+            "-t",
+            "--temp",
+            help="Destination folder for all Hail temp files",
+            nargs="?",
+            const=os.path.abspath(".."),
+            default="/tmp/",
+            required=False,
+        )
+        run_skat.add_argument(
+            "--interval",
+            help="Interval to downfilter i.e. chrX or 1:12000-20000, corresponds to Hail interval nomenclature.",
+            dest="interval",
+            required=False,
+            default=None,
+            type=str,
         )

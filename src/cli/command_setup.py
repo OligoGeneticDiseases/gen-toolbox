@@ -21,6 +21,7 @@ def setup_parser():
     cf.create_load_db_command()
     cf.create_check_relatedness_command()
     cf.create_pca_command()
+    cf.create_run_skat_command()
     return parser
 
 
@@ -53,6 +54,9 @@ def command_handlers(args, conf):
             args, conf, CommandHandler(args).handle_check_relatedness
         ),
         "pca": CommandHandler(args).handle_pca,
+        "runskat": lambda: init_spark_and_run(
+            args, conf, CommandHandler(args).handle_run_skat_command
+        )
     }
     return handlers
 
@@ -66,7 +70,7 @@ def init_spark_and_run(args, conf, func):
     conf.set("spark.executor.extraJavaOptions", "-XX:-UsePerfData")
     conf.set("spark.eventLog.dir", f"{args.dest}")
 
-    if args.command == "readvcfs" or args.command == "relatedness2" or args.command == "loaddb":
+    if args.command == "readvcfs" or args.command == "relatedness2" or args.command == "loaddb" or args.command == "skat":
         os.environ["TMPDIR"] = f"{args.temp}"
         hl.init(
             backend="spark",
