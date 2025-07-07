@@ -1,48 +1,63 @@
-# Oligogenicity
-This pipeline provides a suite of commands (via `main.py`) to manage, annotate, and analyze VCFs with the Hail framework. The pipeline includes commands for locating specific files, importing/annotating VCFs, combining MatrixTables into a “database,” computing relatedness (via KING), and performing PCA plotting.
+# Oligogenicity Analysis Toolbox
 
-The gen-toolbox project is a comprehensive tool for collating large numbers of VCF files of unique samples, annotating variants, and creating variant frequency tables in a pipeline fashion. The project is designed to run locally on a large server and is directed by Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine. This work was supported by the Estonian Research Council grant PSG774.
+This pipeline provides a comprehensive suite of tools for genomic variant burden analysis focused on oligogenic interactions. The project uses the [Hail](https://hail.is/) framework from Broad Institute for scalable genomic data processing, [Ensembl VEP](https://www.ensembl.org/info/docs/tools/vep/index.html) for variant annotation, and Monte Carlo simulation methods for statistical analysis of rare variant enrichment in gene sets. 
+ Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine. This work was supported by the Estonian Research Council grant PSG774.
 
 This repository contains tools for genomic data processing and analysis. It provides a command-line interface (CLI) for executing various commands related to genomic data.
 
 > **Table of Contents**  
-> - [Concept](#Concept)
+> - [Concept](#concept)
 > - [Installation and Requirements](#installation-and-requirements)  
 > - [Usage Overview](#usage-overview)  
 > - [Commands](#commands)  
 >   - [1. `findtype`](#1-findtype)  
 >   - [2. `readvcfs`](#2-readvcfs)  
->   - [3. `loaddb`](#3-loaddb)  
->   - [4. `relatedness2`](#4-relatedness2)  
->   - [5. `pca`](#5-pca)  
+>   - [3. `runskat`](#3-runskat)  
+> - [Statistical Analysis](#statistical-analysis)
+> - [Data Files](#data-files)
 > - [Example Workflows](#example-workflows)
 
 ---    
 
 ## Concept
 
-The concept of this project is to collate large numbers of VCF files of unique samples using [Hail](https://hail.is/) from Broad Institute [GitHub](https://github.com/hail-is/hail), annotate variants using [Ensembl VEP](https://www.ensembl.org/info/docs/tools/vep/index.html), and create variant frequency tables in a pipeline fashion. The tool is set up to run locally on a large server (e.g., 64 core CPU with 2GB of RAM per core). Input VCF formats may differ between generations, but the pipeline is dependent on correct INFO fields. Input VCF files can be validated using the VCF-validator from the [vcftools](https://vcftools.github.io/index.html) toolset. An additional statistical module enables analysis of the frequency tables to reveal potential relations between the variant burden within gene sets and correlating phenotypes – a form of variant enrichment analysis using Monte Carlo permutation analysis. The project is designed to be dockerized.
+The concept of this project is to collate large numbers of VCF files of unique samples using [Hail](https://hail.is/) from Broad Institute [GitHub](https://github.com/hail-is/hail), annotate variants using [Ensembl VEP](https://www.ensembl.org/info/docs/tools/vep/index.html), and create variant frequency tables in a pipeline fashion. The tool is set up to run locally on a large server (e.g., 64 core CPU with 2GB of RAM per core). 
+
+Input VCF formats may differ between generations, but the pipeline is dependent on correct INFO fields. Input VCF files can be validated using the VCF-validator from the [vcftools](https://vcftools.github.io/index.html) toolset. 
+
+An additional statistical module enables analysis of the frequency tables to reveal potential relations between the variant burden within gene sets and correlating phenotypes – a form of variant enrichment analysis using Monte Carlo permutation analysis. The project is designed to be dockerized.
+
+**Key Features:**
+- **Variant Burden Analysis:** Focuses on oligogenic variant interactions
+- **Monte Carlo Simulation:** Statistical analysis for rare variant enrichment
+- **Scalable Processing:** Uses Hail for large-scale genomic data processing
+- **VEP Integration:** Comprehensive variant annotation
+- **Frequency Tables:** Creates detailed variant frequency bins for statistical analysis
 
 ---    
 
 ### Libraries Used
 
-- Hail: A Python library for scalable genomic data analysis.
-- Variant Effect Predictor (VEP): A tool for annotating and predicting the effects of genetic variants.
+- **Hail:** A Python library for scalable genomic data analysis
+- **Variant Effect Predictor (VEP):** A tool for annotating and predicting the effects of genetic variants
+- **Pandas:** Data manipulation and analysis for statistical computations
+- **NumPy/SciPy:** Scientific computing for Monte Carlo simulations
 
 ## Setup
-1.	Clone the project into a local folder
-2.	Insert the VEP annotator perl script location to the config file
-3. `docker image build -t oligogenicity:latest`
-4. `docker run -v {path to VEP}:{path in config} –help`
 
-## Alternatively non-docker setup on local machine
+### Docker Setup
+1. Clone the project into a local folder
+2. Insert the VEP annotator perl script location to the config file
+3. `docker image build -t oligogenicity:latest`
+4. `docker run -v {path to VEP}:{path in config} --help`
+
+### Local Machine Setup
 1. Clone the project
 2. Install perl from https://www.perl.org/get.html
 3. Install VEP from https://useast.ensembl.org/info/docs/tools/vep/script/vep_download.html
-4. Update vep_settings.json, set VEP executable, VEP cache dir 
-5. Create local virtual environment by executing command `python3 -m venv {path-to-your-environment} `
-6. Activate virtual environment by using command `{path-to-your-environment}/bin/activate `
+4. Update `vep_settings.json`, set VEP executable, VEP cache dir 
+5. Create local virtual environment by executing command `python3 -m venv {path-to-your-environment}`
+6. Activate virtual environment by using command `{path-to-your-environment}/bin/activate`
 7. Install requirements by command `pip install -r requirements.txt`
 8. Run: `python3 main.py --help`
 
@@ -50,18 +65,18 @@ The concept of this project is to collate large numbers of VCF files of unique s
 
 ## Installation and Requirements
 
-1. **Python 3.9+** (or newer).
-2. **[Hail 0.2+](https://hail.is/docs/0.2/install/).**  
-3. A **Spark** environment or config that Hail can use (the pipeline sets some default Spark conf parameters in `spark_conf.json`).
-4. Any additional environment setups for [Ensembl VEP](https://github.com/Ensembl/ensembl-vep) if you plan to annotate.
+1. **Python 3.9+** (or newer)
+2. **[Hail 0.2+](https://hail.is/docs/0.2/install/)**  
+3. A **Spark** environment or config that Hail can use (the pipeline sets some default Spark conf parameters in `spark_conf.json`)
+4. Any additional environment setups for [Ensembl VEP](https://github.com/Ensembl/ensembl-vep) if you plan to annotate
 
-Ensure you have installed Hail and VEP as appropriate for your environment. The pipeline expects a working `hail` library and that your `spark.jars` references the `hail-all-spark.jar`. If you see messages about “pip-installed Hail requires additional configuration,” set the Spark properties as recommended or adjust them in `src/config/spark_conf.json`.
+Ensure you have installed Hail and VEP as appropriate for your environment. The pipeline expects a working `hail` library and that your `spark.jars` references the `hail-all-spark.jar`. If you see messages about "pip-installed Hail requires additional configuration," set the Spark properties as recommended or adjust them in `src/config/spark_conf.json`.
 
 ---
 
 ## Usage Overview
 
-Call `main.py` with one of the subcommands (`findtype`, `readvcfs`, `loaddb`, `relatedness2`, `pca`) and the relevant arguments. For instance:
+Call `main.py` with one of the subcommands (`findtype`, `readvcfs`, `runskat`) and the relevant arguments. For instance:
 
 ```bash
 python3 main.py <command> [options...]
@@ -71,17 +86,17 @@ Each command has unique flags. Below are the details.
 
 ## Commands
 
-1) ```findtype```
+### 1. `findtype`
 
-Description: Searches through a directory (recursively) to find files with a specific extension. Can optionally filter by a regex, and writes a list of the found files to disk.
+**Description:** Searches through a directory (recursively) to find files with a specific extension. Can optionally filter by a regex, and writes a list of the found files to disk.
 
-CLI Args:
-* -s / --source : Directory to be searched (required).
-* -d / --directory : Directory to save the output file listing (required).
-* -t / --type : Extension/filetype to look for (required).
-* -r / --regex : Optional regex string to further filter results.
+**CLI Args:**
+* `-s / --source` : Directory to be searched (required)
+* `-d / --directory` : Directory to save the output file listing (required)
+* `-t / --type` : Extension/filetype to look for (required)
+* `-r / --regex` : Optional regex string to further filter results
 
-Example Usage:
+**Example Usage:**
 
 ```bash
 python3 main.py findtype \
@@ -90,160 +105,152 @@ python3 main.py findtype \
   --type .vcf \
   --regex "S1" 
 ```
-This searches /path/to/input/folder for files ending in .vcf whose paths also match the regex "S1", then writes a text file listing results into /path/to/output/folder.
+This searches `/path/to/input/folder` for files ending in `.vcf, then writes a text file listing results into `/path/to/output/folder`.
 
-2) ```readvcfs```
+### 2. `readvcfs`
 
-Description: Imports VCF(s) into Hail MatrixTables, annotates them (optionally via VEP), merges them in memory, and writes frequency tables or the combined MT out. Also reads a globals file to attach metadata (e.g., phenotype).
+**Description:** Imports VCF(s) into Hail MatrixTables, annotates them (optionally via VEP), merges them in memory, and writes frequency tables out. Also reads a globals file to attach metadata (e.g., phenotype). Creates frequency bins for statistical analysis.
 
-CLI Args:
-*	-f / --file : VCF file(s), or a text file containing VCF paths, or a folder of VCFs (required).
-*	-d / --dest : Output directory for final tables/MatrixTables (required).
-*	-r / --overwrite : Overwrite existing output data if set.
-*	-g / --globals : Tab-delimited file for sample-level metadata (required).
-*	The first column is typically the sample ID; additional columns (e.g., phenotype) can be used.
-*	-p / --phenotype : If set, the code filters samples that match this phenotype (optional).
-*	--annotate / --no-annotate : Whether to run VEP annotation (defaults to --annotate).
-*	--write : If set, writes the final merged MatrixTable to disk in addition to a summary table.
-*	-t / --temp : Temporary directory for Hail scratch data.
+**CLI Args:**
+* `-f / --file` : VCF file(s), or a text file containing VCF paths, or a folder of VCFs (required)
+* `-d / --dest` : Output directory for final tables/MatrixTables (required)
+* `-r / --overwrite` : Overwrite existing output data if set
+* `-g / --globals` : Tab-delimited file for sample-level metadata (required)
+  * The first column is typically the sample ID; additional columns (e.g., phenotype) can be used
+* `-p / --phenotype` : If set, the code filters samples that match this phenotype (optional)
+* `--annotate / --no-annotate` : Whether to run VEP annotation (defaults to --annotate)
+* `--write` : If set, writes the final merged MatrixTable to disk in addition to frequency tables
+* `-t / --temp` : Temporary directory for Hail scratch data
+* `--interval` : Interval to downfilter i.e. chrX or 1:12000-20000
 
-Example Usage:
+**Example Usage:**
 
 ```bash
 python3 main.py readvcfs \
   --file /data/my_vcfs/*.vcf \
   --dest /output/folder \
-  --globals /data/phenotype-pseudon.txt \
+  --globals /data/phenotype-metadata.txt \
+  --phenotype "Case" \
   --annotate \
   --write \
   --temp /tmp/hail/
 ```
 
-This finds all .vcf files under /data/my_vcfs/, annotates them with VEP, merges them, writes a MatrixTable in /output/folder, and references metadata from /data/phenotype-pseudon.txt.
+This finds all .vcf files under `/data/my_vcfs/`, annotates them with VEP, merges them, writes frequency tables and MatrixTables in `/output/folder`, and references metadata from `/data/phenotype-metadata.txt`.
 
-3) ```loaddb```
+### 3. `runskat`
 
-Description: Loads Hail MatrixTables from disk (previously written by readvcfs or other steps), merges them, and writes out a combined “database” (also merges frequency bins). Optionally filters by phenotype.
+**Description:** Reads VCFs per phenotype group (cases and controls), processes in batches, extracts genotype matrices, joins them across samples, and saves final matrices as pickled pandas DataFrames for SKAT-compatible input.
 
-CLI Args:
-*	-f / --file : One or more .mt folder paths, or a text list of them, or a directory of MatrixTables.
-*	-r / --overwrite : Overwrite existing output data if set.
-*	-d / --dest : Output directory for final frequency tables / MT.
-*	-n / --number : Number of tables to load/merge (default -1 loads all).
-*	-g / --globals : Same style metadata file for sample IDs, phenotypes, etc.
-*	--phenotype : Regex-based sample filtering.
-*	--write : If set, writes the final merged MatrixTable to disk.
+**CLI Args:**
+* `-f / --file` : VCF file(s), or a text file containing VCF paths, or a folder of VCFs (required)
+* `-d / --dest` : Output directory for final matrices (required)
+* `-r / --overwrite` : Overwrite existing output data if set
+* `-g / --globals` : Tab-delimited file for sample-level metadata (required)
+* `-p / --phenotype` : Filter according to this specific phenotype (required)
+* `--annotate / --no-annotate` : Whether to run VEP annotation (defaults to --annotate)
+* `--write` : Write intermediate MatrixTables to disk for later loading
+* `-t / --temp` : Temporary directory for Hail scratch data
+* `--interval` : Interval to downfilter i.e. chrX or 1:12000-20000
 
-Example Usage:
-
-```bash
-python3 main.py loaddb \
-  --file /output/folder/*.mt \
-  --dest /merged/db \
-  --globals /data/phenotype-pseudon.txt \
-  --write
-```
-This merges all .mt files in /output/folder/*.mt, applies sample metadata from /data/phenotype-pseudon.txt, and writes out a combined dataset to /merged/db.
-
-4) ```relatedness2```
-
-Description: Reads one or more VCF(s), merges them by columns, then runs Hail’s KING method to compute pairwise relatedness (phi). Writes a table of relatedness or “related” pairs to disk. By default, it only processes chromosome 2 (the code specifically filters to interval=["2"] as an example).
-
-CLI Args:
-*	-f / --file : VCF file(s) or directory of VCFs (required).
-*	-d / --dest : Destination for the resulting relatedness.tsv file (required).
-*	-t / --temp : Temporary folder for Hail’s intermediate data.
-
-Example Usage:
+**Example Usage:**
 
 ```bash
-python3 main.py relatedness2 \
-  --file /data/my_vcfs/sample1.vcf /data/my_vcfs/sample2.vcf \
-  --dest /results/relatedness \
+python3 main.py runskat \
+  --file /data/my_vcfs/*.vcf \
+  --dest /output/skat \
+  --globals /data/phenotype-metadata.txt \
+  --phenotype "Case" \
+  --annotate \
   --temp /tmp/hail/
 ```
 
-This merges sample1.vcf and sample2.vcf, filters to chromosome 2, runs KING, and writes /results/relatedness/relatedness.tsv with phi scores for each sample pair.
+This processes VCFs for cases and controls, creates genotype matrices suitable for SKAT analysis, and saves them as pickled DataFrames in `/output/skat`.
 
-5) ```pca```
+---
 
-Description: Plots PCA results from external tab-delimited data. The pipeline’s usage expects you to have a PCA output and an associated .tsv with population or sample metadata.
+## Statistical Analysis
 
-CLI Args:
-*	--pca : Input PCA file (required).
-*	--pca_tsv : Second PCA metadata file (required).
-*	-d / --dest : Output directory for any resulting images or logs.
+The statistical analysis component of this pipeline is implemented in a comprehensive Jupyter notebook located at `extras/stats-notebook.ipynb`. This notebook contains:
 
-Example Usage:
+- **Monte Carlo Permutation Analysis:** Statistical methods for variant burden analysis
+- **Frequency Table Processing:** Analysis of variant frequency distributions
+- **Oligogenic Interaction Models:** Statistical approaches for detecting complex inheritance patterns
+- **Visualization Tools:** Plots and charts for interpreting results
+- **Result Interpretation:** Methods for evaluating statistical significance
 
-```bash
-python3 main.py pca \
-  --pca /data/pca_out/pca_scores.txt \
-  --pca_tsv /data/pca_out/pca_meta.tsv \
-  --dest /figures/
-```
+The notebook processes the frequency tables generated by the pipeline commands and performs sophisticated statistical analyses to identify potential oligogenic interactions and variant burden correlations with phenotypes.
 
-This reads the PCA components from pca_scores.txt, merges them with metadata from pca_meta.tsv, and produces a 2D scatterplot (PC1 vs. PC2) stored in /figures/.
+---
+
+## Data Files
+
+The `extras/data/` directory contains example frequency table datasets for analysis:
+
+### Frequency Tables
+- **`frequency_table_639_LIHAS_positive_rarevariants.csv`** (191KB, 6,378 lines)
+  - LIHAS dataset positive samples (N=639) with rare variants
+- **`frequency_table_639_NULLDIST_positive.csv`** (190KB, 6,358 lines)  
+  - Null distribution for positive samples (N=639)
+- **`frequency_table_9059_LIHAS_negative_rarevariants.csv`** (411KB, 12,944 lines)
+  - LIHAS dataset negative samples (N=9,059) with rare variants  
+- **`frequency_table_9059_NULLDIST_negative.csv`** (415KB, 13,073 lines)
+  - Null distribution for negative samples (N=9,059)
+
+These files represent processed variant frequency data that can be used for statistical analysis in the notebook. The LIHAS datasets contain real variant frequencies, while the NULLDIST files provide null distributions for comparison in Monte Carlo simulations.
+
+---
 
 ## Example Workflows
 
 Below is a typical multi-step usage:
-1.	List VCFs:
 
+### 1. Discovery and Listing
 ```bash
 python3 main.py findtype \
   -s /path/to/inputs \
   -d /path/to/listing \
   -t .vcf
 ```
+This writes a file in `/path/to/listing` enumerating .vcf files found in `/path/to/inputs`.
 
-This writes a file in /path/to/listing enumerating .vcf files found in /path/to/inputs.
-
-2.	Read & Annotate:
-
+### 2. VCF Processing and Frequency Table Generation
 ```bash
 python3 main.py readvcfs \
   -f /path/to/my_vcfs/*.vcf \
   -d /path/to/readvcfs_out \
   -g /path/to/metadata.txt \
+  --phenotype "Case" \
   --annotate \
   --write
 ```
+This merges VCFs, annotates via VEP, creates frequency tables, and writes out MatrixTables in `/path/to/readvcfs_out`.
 
-This merges VCFs, annotates via VEP, and writes out one or more MatrixTables in /path/to/readvcfs_out.
-
-3.	Load & Merge:
-
+### 3. SKAT Matrix Generation
 ```bash
-python3 main.py loaddb \
-  -f /path/to/readvcfs_out/*.mt \
-  -d /path/to/final_db \
-  -g /path/to/metadata.txt \
-  --phenotype "Case.*" \
-  --write
-```
-
-Loads each .mt from step 2, merges them with metadata, filters by a phenotype regex "Case.*", and writes the combined data in /path/to/final_db.
-
-4.	KING Relatedness:
-
-```bash
-python3 main.py relatedness2 \
+python3 main.py runskat \
   -f /path/to/my_vcfs/*.vcf \
-  -d /results/ \
-  -t /tmp/hailtemp/
+  -d /path/to/skat_output \
+  -g /path/to/metadata.txt \
+  --phenotype "Case" \
+  --annotate
 ```
+This creates genotype matrices suitable for SKAT analysis and saves them as pickled DataFrames.
 
-Merges the listed VCFs by columns, filters to chromosome 2, then computes pairwise relatedness using KING. Outputs relatedness.tsv in /results.
-
-5.	PCA:
-
+### 4. Statistical Analysis
+Open and run the Jupyter notebook:
 ```bash
-python3 main.py pca \
-  --pca /results/pca_scores.txt \
-  --pca_tsv /results/pca_metadata.tsv \
-  -d /results/plots
+jupyter notebook extras/stats-notebook.ipynb
 ```
+Use the notebook to perform Monte Carlo simulations and variant burden analysis on the generated frequency tables.
 
-Loads the PCA components (pca_scores.txt), merges with sample data in pca_metadata.tsv, and plots PC1 vs. PC2 in /results/plots.
+---
+
+## Contributing
+
+This project is directed by Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine and supported by Estonian Research Council grant PSG774. All issues in repository should be added to the issues section in code repository.
+
+## License
+
+See LICENSE.md for license information.
 
