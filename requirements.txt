@@ -1,8 +1,8 @@
-hail>=0.2.98
-pyspark~=3.1.3
-pandas>=1.4.4
-scipy>=1.9.3
-matplotlib~=3.6.2
-numpy~=1.23.4
+hail==0.2.133
+pyspark==3.5.4
+pandas==2.2.3
+scipy==1.11.4
+matplotlib==3.9.4
+numpy==1.24.4
 pylint==2.17.5
 pyink==23.5.0
