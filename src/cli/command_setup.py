@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from pathlib import Path
 
 import hail as hl
@@ -20,6 +21,7 @@ def setup_parser():
     cf.create_load_db_command()
     cf.create_check_relatedness_command()
     cf.create_pca_command()
+    cf.create_run_skat_command()
     return parser
 
 
@@ -32,7 +34,9 @@ def setup_spark_config(args):
     conf_data["spark.driver.extraClassPath"] = conf_data[
         "spark.driver.extraClassPath"
     ].format(hail_home=hail_home)
+    conf_data["spark.local.dir"] = conf_data["spark.local.dir"].format(local_dir=args.dest)
 
+    os.environ["SPARK_JAVA_OPTS"] = "-XX:-UsePerfData"
     conf = SparkConf().setAll(conf_data.items())
     return conf
 
@@ -50,6 +54,9 @@ def command_handlers(args, conf):
             args, conf, CommandHandler(args).handle_check_relatedness
         ),
         "pca": CommandHandler(args).handle_pca,
+        "runskat": lambda: init_spark_and_run(
+            args, conf, CommandHandler(args).handle_run_skat_command
+        )
     }
     return handlers
 
@@ -57,11 +64,14 @@ def command_handlers(args, conf):
 def init_spark_and_run(args, conf, func):
     sc = SparkContext(conf=conf)
 
-    conf.set("spark.local.dir", f"{args.dest}")
     conf.set("spark.jars", f"{hail_home}/backend/hail-all-spark.jar")
     conf.set("spark.driver.extraClassPath", f"{hail_home}/backend/hail-all-spark.jar")
+    conf.set("spark.driver.extraJavaOptions","-XX:-UsePerfData")
+    conf.set("spark.executor.extraJavaOptions", "-XX:-UsePerfData")
+    conf.set("spark.eventLog.dir", f"{args.dest}")
 
-    if args.command == "readvcfs" or args.command == "relatedness2":
+    if args.command == "readvcfs" or args.command == "relatedness2" or args.command == "loaddb" or args.command == "skat":
+        os.environ["TMPDIR"] = f"{args.temp}"
         hl.init(
             backend="spark",
             sc=sc,
@@ -75,5 +85,5 @@ def init_spark_and_run(args, conf, func):
         )
     else:
         hl.init(backend="spark", sc=sc, min_block_size=64)
-
+    print(sc.getConf().getAll())
     func()

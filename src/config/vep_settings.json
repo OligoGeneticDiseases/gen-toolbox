@@ -22,4 +22,4 @@
     "env": {
         "PERL5LIB": "/vep_data/loftee"
     },
-    "vep_json_schema": "Struct{IMPACT:String,SYMBOL:String,HGNC_ID:Int32,MAX_AF:Float64,MAX_AF_POPS:String,input:String}"}
+    "vep_json_schema": "Struct{IMPACT:String,SYMBOL:String,HGNC_ID:Int32,MAX_AF:Float64,MAX_AF_POPS:String,input:String}"

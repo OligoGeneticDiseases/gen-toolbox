@@ -1,8 +1,8 @@
 {
   "spark.submit.deployMode": "client",
-  "spark.app.name": "HailTools-TSHC",
-  "spark.executor.cores": "1",
-  "spark.driver.memory": "56g",
+  "spark.app.name": "HailTools-TSO",
+  "spark.executor.cores": "3",
+  "spark.driver.memory": "21g",
   "spark.jars": "{hail_home}/backend/hail-all-spark.jar",
   "spark.executor.extraClassPath": "./hail-all-spark.jar",
   "spark.driver.extraClassPath": "{hail_home}/backend/hail-all-spark.jar",
@@ -10,6 +10,10 @@
   "spark.kryo.registrator": "is.hail.kryo.HailKryoRegistrator",
   "spark.driver.bindAddress": "127.0.0.1",
   "spark.speculation":"false",
-  "spark.task.maxFailures":"4"
+  "spark.task.maxFailures":"4",
+  "spark.logConf": "false",
+  "spark.log.level": "FATAL",
+  "spark.local.dir": "{local_dir}",
+  "spark.executor.extraJavaOptions": "-XX:+UseG1GC"
 
 }
