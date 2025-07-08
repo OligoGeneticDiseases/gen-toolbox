@@ -1,0 +1,88 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+LICENSE.md
+docs/
+# Keep DOCKER_DEPLOYMENT.md for reference
+# DOCKER_DEPLOYMENT.md
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+.nox/
+htmlcov/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Jupyter notebooks
+*.ipynb
+extras/stats-notebook.ipynb
+
+# Data files (these can be large and should be mounted as volumes)
+extras/data/
+tests/
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile*
+docker-compose*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/ 

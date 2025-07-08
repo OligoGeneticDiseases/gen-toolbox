@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  gen-toolbox:
+    build: .
+    image: oligogenicity:latest
+    container_name: gen-toolbox
+    volumes:
+      # Mount data directory for input VCF files
+      - ./data:/app/data:ro
+      # Mount output directory for results
+      - ./output:/app/output
+      # Mount VEP cache directory (adjust path as needed)
+      - /path/to/vep/cache:/vep/cache:ro
+      # Mount configuration directory for custom configs
+      - ./src/config:/app/src/config:ro
+      # Mount temporary directory for processing
+      - ./tmp:/app/tmp
+    environment:
+      - JAVA_OPTS=-Xmx8g
+      - SPARK_LOCAL_DIRS=/app/tmp
+    
+    # For interactive use, uncomment the following:
+    # stdin_open: true
+    # tty: true
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+        reservations:
+          memory: 8G
+          cpus: '4'
+
+  # Example service for development with mounted source code
+  gen-toolbox-dev:
+    build: .
+    image: oligogenicity:latest
+    container_name: gen-toolbox-dev
+    volumes:
+      - .:/app
+      - ./data:/app/data:ro
+      - ./output:/app/output
+      - ./tmp:/app/tmp
+    environment:
+      - JAVA_OPTS=-Xmx8g
+      - SPARK_LOCAL_DIRS=/app/tmp
+    stdin_open: true
+    tty: true
+    command: ["--help"]
+    profiles:
+      - dev 
