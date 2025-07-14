@@ -257,7 +257,7 @@ Follow the notebook to perform Monte Carlo simulations and variant burden analys
 
 ## Contributing
 
-Ethics approval was granted by the University of Tartu Research Ethics Committee for reanalysis of variant files. In accordance with the research permit 374/M-6. This project is a collaboration between the Institute of Clinical Medicine, Tartu University and the Genetics and Personalized Medicine Clinic, Tartu University Hospital. The work is financed by the Estonian Research Council grant PSG774. All issues in repository should be added to the issues section in code repository.
+Ethics approval was granted by the University of Tartu Research Ethics Committee for reanalysis of variant files. In accordance with the research permit 374/M-6. This project is a collaboration between the Institute of Clinical Medicine, Tartu University and the Genetics and Personalized Medicine Clinic, Tartu University Hospital. The work is financed by the Estonian Research Council grants PSG774 and PRG2040. All issues in repository should be added to the issues section in code repository.
 
 ## License
 
