@@ -1,9 +1,8 @@
 # Oligogenicity Analysis Toolbox
 
 This pipeline provides a comprehensive suite of tools for genomic variant burden analysis focused on oligogenic interactions. The project uses the [Hail](https://hail.is/) framework from Broad Institute for scalable genomic data processing, [Ensembl VEP](https://www.ensembl.org/info/docs/tools/vep/index.html) for variant annotation, and Monte Carlo simulation methods for statistical analysis of rare variant enrichment in gene sets. 
- Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine. This work was supported by the Estonian Research Council grant PSG774.
 
-This repository contains tools for genomic data processing and analysis. It provides a command-line interface (CLI) for executing various commands related to genomic data.
+This repository contains tools for variant data processing and analysis. It provides a command-line interface (CLI) for executing various commands related to variant data.
 
 > **Table of Contents**  
 > - [Concept](#concept)
@@ -105,11 +104,11 @@ python3 main.py findtype \
   --type .vcf \
   --regex "S1" 
 ```
-This searches `/path/to/input/folder` for files ending in `.vcf, then writes a text file listing results into `/path/to/output/folder`.
+This searches `/path/to/input/folder` for files ending in `.vcf, then writes a text file listing results into `/path/to/output/folder`. This text file can be used to collate files using a number of shell tools or edited to create a 
 
 ### 2. `readvcfs`
 
-**Description:** Imports VCF(s) into Hail MatrixTables, annotates them (optionally via VEP), merges them in memory, and writes frequency tables out. Also reads a globals file to attach metadata (e.g., phenotype). Creates frequency bins for statistical analysis.
+**Description:** Imports VCF(s) into Hail MatrixTables, annotates them (optionally via VEP), merges them in memory, and writes frequency tables out. Also requires a `globals` file to attach metadata (e.g., phenotype) to the input samples. Creates frequency bins for statistical analysis.
 
 **CLI Args:**
 * `-f / --file` : VCF file(s), or a text file containing VCF paths, or a folder of VCFs (required)
@@ -138,17 +137,17 @@ python3 main.py readvcfs \
 
 This finds all .vcf files under `/data/my_vcfs/`, annotates them with VEP, merges them, writes frequency tables and MatrixTables in `/output/folder`, and references metadata from `/data/phenotype-metadata.txt`.
 
-### 3. `runskat`
+### 3. *Optional `runskat`*
 
 **Description:** Reads VCFs per phenotype group (cases and controls), processes in batches, extracts genotype matrices, joins them across samples, and saves final matrices as pickled pandas DataFrames for SKAT-compatible input.
 
 **CLI Args:**
 * `-f / --file` : VCF file(s), or a text file containing VCF paths, or a folder of VCFs (required)
 * `-d / --dest` : Output directory for final matrices (required)
-* `-r / --overwrite` : Overwrite existing output data if set
+* `-r / --overwrite` : Overwrites existing output data if set
 * `-g / --globals` : Tab-delimited file for sample-level metadata (required)
 * `-p / --phenotype` : Filter according to this specific phenotype (required)
-* `--annotate / --no-annotate` : Whether to run VEP annotation (defaults to --annotate)
+* `--annotate / --no-annotate` : Whether to run VEP annotation (defaults to --annotate, will fail if VEP is not installed and configured)
 * `--write` : Write intermediate MatrixTables to disk for later loading
 * `-t / --temp` : Temporary directory for Hail scratch data
 * `--interval` : Interval to downfilter i.e. chrX or 1:12000-20000
@@ -173,9 +172,9 @@ This processes VCFs for cases and controls, creates genotype matrices suitable f
 
 The statistical analysis component of this pipeline is implemented in a comprehensive Jupyter notebook located at `extras/stats-notebook.ipynb`. This notebook contains:
 
-- **Monte Carlo Permutation Analysis:** Statistical methods for variant burden analysis
-- **Frequency Table Processing:** Analysis of variant frequency distributions
-- **Oligogenic Interaction Models:** Statistical approaches for detecting complex inheritance patterns
+- **Frequency Table Processing:** Analysis of variant burden summary stats analysis
+- **Monte Carlo Permutation Analysis:** Simulating random gene pathways for variant burden analysis
+- **Oligogenic Interaction Models:** Logistic regression for detecting burden patterns in the simulations
 - **Visualization Tools:** Plots and charts for interpreting results
 - **Result Interpretation:** Methods for evaluating statistical significance
 
@@ -189,15 +188,15 @@ The `extras/data/` directory contains example frequency table datasets for analy
 
 ### Frequency Tables
 - **`frequency_table_639_LIHAS_positive_rarevariants.csv`** (191KB, 6,378 lines)
-  - LIHAS dataset positive samples (N=639) with rare variants
+  - Neuromuscular disease dataset positive samples (N=639), also including samples with monogenic rare variants
 - **`frequency_table_639_NULLDIST_positive.csv`** (190KB, 6,358 lines)  
-  - Null distribution for positive samples (N=639)
+  - Expected null distribution of random samples as comparison (N=639)
 - **`frequency_table_9059_LIHAS_negative_rarevariants.csv`** (411KB, 12,944 lines)
-  - LIHAS dataset negative samples (N=9,059) with rare variants  
+  - Dataset of negative samples for NMD (N=9,059) with rare variants for other phenotypes 
 - **`frequency_table_9059_NULLDIST_negative.csv`** (415KB, 13,073 lines)
-  - Null distribution for negative samples (N=9,059)
+  - Expected null distribution for negative samples (N=9,059), i.e. random phenotypes
 
-These files represent processed variant frequency data that can be used for statistical analysis in the notebook. The LIHAS datasets contain real variant frequencies, while the NULLDIST files provide null distributions for comparison in Monte Carlo simulations.
+These files represent processed variant frequency data that can be used for statistical analysis in the notebook. The summary variant burden files were generated from a dataset of 9698 samples sequenced for a variety of diseases using Illumina TruSight One and TruSight Expanded targeted gene sequencing panels and represents the data that was analysed for the primary publication. You may generate your own frequency data with targeted data/WES/WGS VCF inputs.
 
 ---
 
@@ -212,7 +211,10 @@ python3 main.py findtype \
   -d /path/to/listing \
   -t .vcf
 ```
-This writes a file in `/path/to/listing` enumerating .vcf files found in `/path/to/inputs`.
+This writes a file in `/path/to/listing` enumerating .vcf files found in `/path/to/inputs`. A samples file containing the phenotypes of available samples should be generated from this output:
+i.e. metadata.txt, *tab* seperated 3 columns of sample \t phenotype \t comments. One sample per line. The phenotype column may contain several phenotypes per sample, defaults to comma seperated.
+*sample1.vcf*\t*NMD,DMD*\t*NC_000023.10:g.33229398C>A*
+This enables grouping of one or more phenotypes for analysis. This sample-phenotype file is used as input in *readvcfs,runskat* (--globals) and further filtered (--phenotype DMD) to generate a positive set. 
 
 ### 2. VCF Processing and Frequency Table Generation
 ```bash
@@ -235,20 +237,27 @@ python3 main.py runskat \
   --phenotype "Case" \
   --annotate
 ```
-This creates genotype matrices suitable for SKAT analysis and saves them as pickled DataFrames.
+Optionally, this creates genotype matrices suitable for SKAT analysis and saves them as pickled DataFrames. SKAT analysis might be useful for a comparison of findings from Monte Carlo simulation analysis.
 
 ### 4. Statistical Analysis
 Open and run the Jupyter notebook:
 ```bash
 jupyter notebook extras/stats-notebook.ipynb
 ```
-Use the notebook to perform Monte Carlo simulations and variant burden analysis on the generated frequency tables.
+Follow the notebook to perform Monte Carlo simulations and variant burden analysis on the generated frequency tables.
 
 ---
 
+### 5. Limitations
+- **Single Workstation VEP:** Using Hail to activate VEP annotations on a single workstation can be very slow in comparison to modern clinical annotation pipelines. One might therefore be more inclined to use this tool with a single generation VCF input such as Illumina DRAGEN output VCF files that already contain variant annotations.
+- **Limited annotations:** The pipeline is set to work on 4 minimum annotations from VEP: impact, gene label, HGNC ID, MAX_AF
+- **Different VCF generations:** Using different generations of input VCF files may pose unexpected faults if formatting changes throughout, Hail expects all VCFs to have the 4 annotations to be in the same format and location within the VCF (i.e. CSQ string formatting). More annotations are allowed, but then the code snippet should be modified accordingly for correct CSQ string handling.
+- **Unsupported variants:** Star-alleles are filtered due to the way Hail processes variants.
+- **Hail exceptions and logging:** The pipeline is setup to fail gracefully after catching exceptions, which are contained in Hail logs. Hail logfiles can grow to a large size if logging levels are inapproriately low for large datasets. As the pipeline is sequential, the pipeline will skip intermediary output files and continue from the last known position if the command is restarted with the same CLI inputs.
+
 ## Contributing
 
-This project is directed by Tartu University Hospital Centre of Medical Genetics / Tartu University Institute of Clinical Medicine and supported by Estonian Research Council grant PSG774. All issues in repository should be added to the issues section in code repository.
+Ethics approval was granted by the University of Tartu Research Ethics Committee for reanalysis of variant files. In accordance with the research permit 374/M-6. This project is a collaboration between the Institute of Clinical Medicine, Tartu University and the Genetics and Personalized Medicine Clinic, Tartu University Hospital. The work is financed by the Estonian Research Council grant PSG774. All issues in repository should be added to the issues section in code repository.
 
 ## License
 
