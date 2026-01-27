@@ -249,6 +249,7 @@ Follow the notebook to perform Monte Carlo simulations and variant burden analys
 ---
 
 ### 5. Limitations
+- **Memory Management in Non-Distributed Environments:** In some local or undistributed computing environments, Hail may develop a memory leak during intensive processing, which can lead to pipeline failure. This is mitigated in the current implementation by checkpointing intermediate steps to VDS (Variant Dataset) or MatrixTable formats on disk, clearing the memory buffer before proceeding.
 - **Single Workstation VEP:** Using Hail to activate VEP annotations on a single workstation can be very slow in comparison to modern clinical annotation pipelines. One might therefore be more inclined to use this tool with a single generation VCF input such as Illumina DRAGEN output VCF files that already contain variant annotations.
 - **Limited annotations:** The pipeline is set to work on 4 minimum annotations from VEP: impact, gene label, HGNC ID, MAX_AF
 - **Different VCF generations:** Using different generations of input VCF files may pose unexpected faults if formatting changes throughout, Hail expects all VCFs to have the 4 annotations to be in the same format and location within the VCF (i.e. CSQ string formatting). More annotations are allowed, but then the code snippet should be modified accordingly for correct CSQ string handling.
